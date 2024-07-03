@@ -1,21 +1,27 @@
 package com.an.ads.provider
 
 import android.app.Activity
+import android.app.Application
 import android.view.ViewGroup
-import com.an.ads.AdEntity
-import com.an.ads.AdPlacementCall
-import com.an.ads.AdPlacementRequest
+import com.an.ads.placement.AdPlacementRequest
 
 /**
  *广告提供商适配器接口
  * **/
 interface AdProviderAdapter {
 
-    fun initialize(config: AdProviderConfig)
+    fun initialize(
+        context: Application,
+        config: AdProviderConfig,
+        listener: (success: Boolean) -> Unit
+    )
+
+    fun openDebug(activity: Activity)
 
     fun loadAd(
+        activity: Activity,
         request: AdPlacementRequest,
-        listener: ProviderEventListener
+        listener: ProviderListener
     )
 
     fun showAd(
@@ -23,6 +29,6 @@ interface AdProviderAdapter {
         container: ViewGroup,
         request: AdPlacementRequest,
         ad: Any,
-        listener: ProviderRewardListener
+        listener: ProviderListener
     )
 }

@@ -1,7 +1,9 @@
 package com.an.ads.provider
 
 
-interface ProviderEventListener {
+interface ProviderListener {
+
+    fun onAdStartedToLoad()
 
     fun onAdLoaded(ad: Any)
 
@@ -14,4 +16,7 @@ interface ProviderEventListener {
     fun onAdPaidEvent()
 
     fun onAdClosed()
+
+    fun onAdUserEarnedReward()
+
 }

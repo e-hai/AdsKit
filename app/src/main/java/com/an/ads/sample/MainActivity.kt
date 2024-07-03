@@ -2,15 +2,17 @@ package com.an.ads.sample
 
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
 import com.an.ads.AdCallback
 import com.an.ads.AdEntity
 import com.an.ads.AdManager
-import com.an.ads.AdPlacementRequest
+import com.an.ads.placement.AdPlacementRequest
 import com.an.ads.AdType
-import com.an.ads.AdProviderType
+import com.an.ads.provider.AdProviderType
+import com.an.ads.ump.UMP
 
 class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -26,6 +28,25 @@ class MainActivity : AppCompatActivity() {
         findViewById<View>(R.id.banner).setOnClickListener {
             showBanner(findViewById(R.id.bannerViewGroup))
         }
+        findViewById<View>(R.id.ad_debug).setOnClickListener {
+            showDebug()
+        }
+        val adWidth = defaultBannerAdWidth()
+        Log.d("Main", "屏幕宽=$adWidth")
+        UMP.start(this) {
+            Log.d("Main", "UMP=$it")
+        }
+    }
+
+    private fun showDebug() {
+        AdManager.openDebug(this, AdProviderType.APPLOVIN)
+    }
+
+    private fun defaultBannerAdWidth(): Int {
+        val displayMetrics = resources.displayMetrics
+        val adWidthPixels = displayMetrics.widthPixels
+        val density = displayMetrics.density
+        return (adWidthPixels / density).toInt()
     }
 
     private fun showBanner(viewGroup: ViewGroup) {
@@ -33,12 +54,12 @@ class MainActivity : AppCompatActivity() {
             "1",
             "admob_unit_id_666",
             AdType.BANNER,
-            AdProviderType.ADMOB
+            AdProviderType.APPLOVIN
         )
 
-        AdManager.loadAd(placementConfig, object : AdCallback() {
+        AdManager.loadAd(this, placementConfig, object : AdCallback() {
             override fun onAdLoaded(ad: AdEntity) {
-                ad.show(this@MainActivity,viewGroup)
+                ad.show(this@MainActivity, viewGroup)
             }
 
             override fun onAdFailedToLoad(error: String) {
@@ -54,12 +75,12 @@ class MainActivity : AppCompatActivity() {
             "1",
             "admob_unit_id_666",
             AdType.REWARDED,
-            AdProviderType.ADMOB
+            AdProviderType.APPLOVIN
         )
 
-        AdManager.loadAd(placementConfig, object : AdCallback() {
+        AdManager.loadAd(this, placementConfig, object : AdCallback() {
             override fun onAdLoaded(ad: AdEntity) {
-                ad.show(this@MainActivity,viewGroup)
+                ad.show(this@MainActivity, viewGroup)
             }
 
             override fun onAdFailedToLoad(error: String) {
@@ -75,12 +96,12 @@ class MainActivity : AppCompatActivity() {
             "1",
             "admob_unit_id_666",
             AdType.SPLASH,
-            AdProviderType.ADMOB
+            AdProviderType.APPLOVIN
         )
 
-        AdManager.loadAd(placementConfig, object : AdCallback() {
+        AdManager.loadAd(this, placementConfig, object : AdCallback() {
             override fun onAdLoaded(ad: AdEntity) {
-                ad.show(this@MainActivity,viewGroup)
+                ad.show(this@MainActivity, viewGroup)
             }
 
             override fun onAdFailedToLoad(error: String) {

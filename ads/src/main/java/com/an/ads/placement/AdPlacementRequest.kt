@@ -1,4 +1,7 @@
-package com.an.ads
+package com.an.ads.placement
+
+import com.an.ads.AdType
+import com.an.ads.provider.AdProviderType
 
 /**
  * 广告位配置

@@ -1,4 +1,4 @@
-package com.an.ads
+package com.an.ads.provider
 
 /**
  * 广告提供商类型

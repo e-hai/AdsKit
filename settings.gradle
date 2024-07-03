@@ -10,6 +10,30 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+
+        //admob Mediation start
+        maven { url 'https://imobile.github.io/adnw-sdk-android' }
+        maven { url 'https://android-sdk.is.com/' }
+        maven { url 'https://imobile-maio.github.io/maven' }
+        maven { url 'https://dl-maven-android.mintegral.com/repository/mbridge_android_sdk_oversea' }
+        maven { url 'https://artifact.bytedance.com/repository/pangle/' }
+        maven { url 'https://cboost.jfrog.io/artifactory/chartboost-ads/' }
+        //admob Mediation end
+
+        //applovin Mediation start
+//屏蔽一些跟admob重复的
+//        maven { url "https://android-sdk.is.com" }
+//        maven { url "https://imobile-maio.github.io/maven" }
+//        maven { url "https://dl-maven-android.mintegral.com/repository/mbridge_android_sdk_oversea" }
+//        maven { url "https://artifact.bytedance.com/repository/pangle" }
+//        maven { url "https://cboost.jfrog.io/artifactory/chartboost-ads/" }
+        maven { url 'https://artifacts.applovin.com/android' }
+        maven { url "https://artifactory.bidmachine.io/bidmachine" }
+        maven { url "https://maven.ogury.co" }
+        maven { url "https://s3.amazonaws.com/smaato-sdk-releases/" }
+        maven { url "https://verve.jfrog.io/artifactory/verve-gradle-release" }
+        //applovin Mediation end
+
     }
 }
 rootProject.name = "AnAds"
