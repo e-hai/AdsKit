@@ -10,7 +10,7 @@
         android:theme="@style/Theme.AnAds"
         tools:targetApi="31">
         <activity
-            android:name="com.an.ads.sample.MainActivity"
+            android:name="com.kit.ads.sample.MainActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

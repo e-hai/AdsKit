@@ -36,6 +36,6 @@ dependencyResolutionManagement {
 
     }
 }
-rootProject.name = "AnAds"
+rootProject.name = "AdsKit"
 include ':app'
 include ':ads'
