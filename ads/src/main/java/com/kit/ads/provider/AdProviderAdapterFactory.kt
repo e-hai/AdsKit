@@ -1,6 +1,5 @@
 package com.kit.ads.provider
 
-import android.content.Context
 import com.kit.ads.provider.admob.AdmobProviderAdapter
 import com.kit.ads.provider.applovin.ApplovinProviderAdapter
 

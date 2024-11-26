@@ -6,7 +6,7 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import com.kit.ads.AdType
 import com.kit.ads.BuildConfig
-import com.kit.ads.placement.AdPlacementRequest
+import com.kit.ads.placement.AdTriggerPoint
 import com.kit.ads.provider.AdProviderAdapter
 import com.kit.ads.provider.AdProviderConfig
 import com.kit.ads.provider.ProviderListener
@@ -81,7 +81,7 @@ internal class ApplovinProviderAdapter : AdProviderAdapter {
 
     override fun loadAd(
         activity: Activity,
-        request: AdPlacementRequest,
+        request: AdTriggerPoint,
         listener: ProviderListener
     ) {
         if (!isInitialized) {
@@ -101,7 +101,7 @@ internal class ApplovinProviderAdapter : AdProviderAdapter {
 
     private fun loadRewarded(
         activity: Activity,
-        request: AdPlacementRequest,
+        request: AdTriggerPoint,
         listener: ProviderListener
     ) {
         val ad = MaxRewardedAd.getInstance(request.adUnitId, activity)
@@ -142,7 +142,7 @@ internal class ApplovinProviderAdapter : AdProviderAdapter {
 
     private fun loadSplash(
         activity: Activity,
-        request: AdPlacementRequest,
+        request: AdTriggerPoint,
         listener: ProviderListener
     ) {
         val ad = MaxAppOpenAd(request.adUnitId, activity)
@@ -178,7 +178,7 @@ internal class ApplovinProviderAdapter : AdProviderAdapter {
 
     private fun loadBanner(
         activity: Activity,
-        request: AdPlacementRequest,
+        request: AdTriggerPoint,
         listener: ProviderListener
     ) {
         val ad = MaxAdView(request.adUnitId, activity)
@@ -228,7 +228,7 @@ internal class ApplovinProviderAdapter : AdProviderAdapter {
     override fun showAd(
         activity: Activity,
         container: ViewGroup,
-        request: AdPlacementRequest,
+        request: AdTriggerPoint,
         ad: Any,
         listener: ProviderListener
     ) {
