@@ -9,7 +9,7 @@ import android.widget.LinearLayout
 import com.kit.ads.AdCallback
 import com.kit.ads.AdEntity
 import com.kit.ads.AdManager
-import com.kit.ads.placement.AdTriggerPoint
+import com.kit.ads.AdPlacement
 import com.kit.ads.AdType
 import com.kit.ads.provider.AdProviderType
 import com.kit.ads.ump.UMP
@@ -50,7 +50,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showBanner(viewGroup: ViewGroup) {
-        val placementConfig = AdTriggerPoint(
+        val placementConfig = AdPlacement(
             "1",
             "admob_unit_id_666",
             AdType.BANNER,
@@ -71,7 +71,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showReward(viewGroup: ViewGroup) {
-        val placementConfig = AdTriggerPoint(
+        val placementConfig = AdPlacement(
             "1",
             "admob_unit_id_666",
             AdType.REWARDED,
@@ -92,7 +92,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showSplash(viewGroup: ViewGroup) {
-        val placementConfig = AdTriggerPoint(
+        val placementConfig = AdPlacement(
             "1",
             "admob_unit_id_666",
             AdType.SPLASH,

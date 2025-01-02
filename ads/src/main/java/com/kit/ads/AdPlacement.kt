@@ -1,6 +1,5 @@
-package com.kit.ads.placement
+package com.kit.ads
 
-import com.kit.ads.AdType
 import com.kit.ads.provider.AdProviderType
 
 /**
@@ -9,7 +8,7 @@ import com.kit.ads.provider.AdProviderType
  * 该类用于标识广告触发的特定位置或场景，例如应用中的某个界面或功能模块。
  * 由调用者定义，用于决定何时以及在哪个位置触发广告的加载和展示。
  */
-data class AdTriggerPoint(
+data class AdPlacement(
     /**
      * 广告位标识
      *

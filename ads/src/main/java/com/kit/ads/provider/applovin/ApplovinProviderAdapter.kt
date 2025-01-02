@@ -6,12 +6,11 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import com.kit.ads.AdType
 import com.kit.ads.BuildConfig
-import com.kit.ads.placement.AdTriggerPoint
+import com.kit.ads.AdPlacement
 import com.kit.ads.provider.AdProviderAdapter
 import com.kit.ads.provider.AdProviderConfig
 import com.kit.ads.provider.ProviderListener
 import com.applovin.mediation.MaxAd
-import com.applovin.mediation.MaxAdFormat
 import com.applovin.mediation.MaxAdListener
 import com.applovin.mediation.MaxAdViewAdListener
 import com.applovin.mediation.MaxError
@@ -24,11 +23,7 @@ import com.applovin.sdk.AppLovinMediationProvider
 import com.applovin.sdk.AppLovinSdk
 import com.applovin.sdk.AppLovinSdkInitializationConfiguration
 import com.applovin.sdk.AppLovinSdkUtils
-import com.google.android.gms.ads.AdView
-import com.google.android.gms.ads.appopen.AppOpenAd
 import com.google.android.gms.ads.identifier.AdvertisingIdClient
-import com.google.android.gms.ads.rewarded.RewardedAd
-import com.ironsource.ac
 import java.util.Collections
 
 internal class ApplovinProviderAdapter : AdProviderAdapter {
@@ -81,7 +76,7 @@ internal class ApplovinProviderAdapter : AdProviderAdapter {
 
     override fun loadAd(
         activity: Activity,
-        request: AdTriggerPoint,
+        request: AdPlacement,
         listener: ProviderListener
     ) {
         if (!isInitialized) {
@@ -101,7 +96,7 @@ internal class ApplovinProviderAdapter : AdProviderAdapter {
 
     private fun loadRewarded(
         activity: Activity,
-        request: AdTriggerPoint,
+        request: AdPlacement,
         listener: ProviderListener
     ) {
         val ad = MaxRewardedAd.getInstance(request.adUnitId, activity)
@@ -142,7 +137,7 @@ internal class ApplovinProviderAdapter : AdProviderAdapter {
 
     private fun loadSplash(
         activity: Activity,
-        request: AdTriggerPoint,
+        request: AdPlacement,
         listener: ProviderListener
     ) {
         val ad = MaxAppOpenAd(request.adUnitId, activity)
@@ -178,7 +173,7 @@ internal class ApplovinProviderAdapter : AdProviderAdapter {
 
     private fun loadBanner(
         activity: Activity,
-        request: AdTriggerPoint,
+        request: AdPlacement,
         listener: ProviderListener
     ) {
         val ad = MaxAdView(request.adUnitId, activity)
@@ -228,7 +223,7 @@ internal class ApplovinProviderAdapter : AdProviderAdapter {
     override fun showAd(
         activity: Activity,
         container: ViewGroup,
-        request: AdTriggerPoint,
+        request: AdPlacement,
         ad: Any,
         listener: ProviderListener
     ) {

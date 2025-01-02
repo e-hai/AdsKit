@@ -7,8 +7,6 @@ import com.kit.ads.event.AdEventObserver
 import com.kit.ads.event.AdEventObserverManager
 import com.kit.ads.event.InitFailure
 import com.kit.ads.event.InitSuccess
-import com.kit.ads.placement.AdTriggerPoint
-import com.kit.ads.placement.AdTriggerPointExecutor
 import com.kit.ads.provider.AdProviderAdapter
 import com.kit.ads.provider.AdProviderAdapterFactory
 import com.kit.ads.provider.AdProviderConfig
@@ -38,7 +36,8 @@ object AdManager {
 
             // 初始化广告适配器，完成后通知观察者
             adapter.initialize(context, config) { success ->
-                val eventType = if (success) InitSuccess(providerType) else InitFailure(providerType)
+                val eventType =
+                    if (success) InitSuccess(providerType) else InitFailure(providerType)
                 observerManager.notifyObservers(eventType)
             }
 
@@ -57,21 +56,37 @@ object AdManager {
             ?: Log.e(TAG, "No adapter found for provider: ${providerType.name}")
     }
 
+
     /**
      * 加载广告数据
+     * @param activity 当前Activity
+     * @param placement 广告触发点请求
+     * @param adListener 广告回调监听器
+     */
+    fun loadAd(activity: Activity, placement: AdPlacement, adListener: AdListener) {
+        executeAdPlacement(activity, placement, adListener)
+    }
+
+    /**
+     * 构建并执行广告加载
      * @param activity 当前Activity
      * @param triggerPoint 广告触发点请求
      * @param adListener 广告回调监听器
      */
-    fun loadAd(activity: Activity, triggerPoint: AdTriggerPoint, adListener: AdListener) {
-        val adapter = adProviderAdapters[triggerPoint.providerType]
+    private fun executeAdPlacement(
+        activity: Activity,
+        placement: AdPlacement,
+        adListener: AdListener
+    ) {
+        val adapter = adProviderAdapters[placement.providerType]
 
         if (adapter == null) {
             // 如果没有找到对应的适配器，调用失败回调
-            adListener.onAdFailedToLoad("No adapter found for provider: ${triggerPoint.providerType}")
+            adListener.onAdFailedToLoad("No adapter found for provider: ${placement.providerType}")
         } else {
             // 构建并执行广告加载
-            AdTriggerPointExecutor.build(triggerPoint, adListener, adapter, observerManager).loadAd(activity)
+            AdPlacementExecutor.build(placement, adapter, observerManager)
+                .loadAd(activity, adListener)
         }
     }
 
@@ -91,5 +106,6 @@ object AdManager {
     fun unregisterObserver(observer: AdEventObserver) {
         observerManager.unregisterObserver(observer)
     }
-}
 
+
+}

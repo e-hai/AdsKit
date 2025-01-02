@@ -3,7 +3,7 @@ package com.kit.ads.provider
 import android.app.Activity
 import android.app.Application
 import android.view.ViewGroup
-import com.kit.ads.placement.AdTriggerPoint
+import com.kit.ads.AdPlacement
 
 /**
  * 广告提供商适配器接口
@@ -36,7 +36,7 @@ interface AdProviderAdapter {
      */
     fun loadAd(
         activity: Activity,
-        request: AdTriggerPoint,
+        request: AdPlacement,
         listener: ProviderListener
     )
 
@@ -53,7 +53,7 @@ interface AdProviderAdapter {
     fun showAd(
         activity: Activity,
         container: ViewGroup,
-        request: AdTriggerPoint,
+        request: AdPlacement,
         ad: Any,
         listener: ProviderListener
     )

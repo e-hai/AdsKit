@@ -6,7 +6,7 @@ import android.content.Context
 import android.util.Log
 import android.view.ViewGroup
 import com.kit.ads.AdManager.TAG
-import com.kit.ads.placement.AdTriggerPoint
+import com.kit.ads.AdPlacement
 import com.kit.ads.provider.AdProviderAdapter
 import com.kit.ads.provider.AdProviderConfig
 import com.kit.ads.AdType
@@ -84,7 +84,7 @@ internal class AdmobProviderAdapter : AdProviderAdapter {
 
     override fun loadAd(
         activity: Activity,
-        request: AdTriggerPoint,
+        request: AdPlacement,
         listener: ProviderListener
     ) {
         if (!isInitialized) {
@@ -114,7 +114,7 @@ internal class AdmobProviderAdapter : AdProviderAdapter {
      * **/
     private fun loadBanner(
         activity: Activity,
-        request: AdTriggerPoint,
+        request: AdPlacement,
         listener: ProviderListener
     ) {
 
@@ -182,7 +182,7 @@ internal class AdmobProviderAdapter : AdProviderAdapter {
 
     private fun loadRewarded(
         activity: Activity,
-        request: AdTriggerPoint,
+        request: AdPlacement,
         listener: ProviderListener
     ) {
         val adUnitId =
@@ -233,7 +233,7 @@ internal class AdmobProviderAdapter : AdProviderAdapter {
 
     private fun loadSplash(
         activity: Activity,
-        request: AdTriggerPoint,
+        request: AdPlacement,
         listener: ProviderListener
     ) {
         val adUnitId = if (BuildConfig.DEBUG) DEBUG_OPEN_AD_UNIT_ID else request.adUnitId
@@ -280,7 +280,7 @@ internal class AdmobProviderAdapter : AdProviderAdapter {
     override fun showAd(
         activity: Activity,
         container: ViewGroup,
-        request: AdTriggerPoint,
+        request: AdPlacement,
         ad: Any,
         listener: ProviderListener
     ) {
