@@ -1,6 +1,6 @@
 package com.kit.ads
 
-import android.app.Activity
+import android.content.Context
 import android.util.Log
 import com.kit.ads.AdManager.TAG
 import com.kit.ads.event.AdClicked
@@ -33,9 +33,9 @@ class AdPlacementExecutor private constructor(
      *
      * 调用广告提供商适配器加载广告资源，并通过 `providerListener` 监听广告加载的过程。
      *
-     * @param activity 当前的 Activity，广告加载时的上下文。
+     * @param context 上下文
      */
-    fun loadAd(activity: Activity, listener: AdListener) {
+    fun loadAd(context: Context, listener: AdListener) {
         // 提供商回调监听器
         // 该监听器负责接收广告提供商SDK的各类事件回调，如广告加载、展示、点击、关闭等。
         val providerListener = object : ProviderListener {
@@ -88,7 +88,7 @@ class AdPlacementExecutor private constructor(
                 observerManager.notifyObservers(AdRewarded(placement))  // 通知观察者用户获得奖励
             }
         }
-        providerAdapter.loadAd(activity, placement, providerListener)  // 使用适配器加载广告
+        providerAdapter.loadAd(context, placement, providerListener)  // 使用适配器加载广告
     }
 
 

@@ -13,17 +13,17 @@ class App : Application() {
     override fun onCreate() {
         super.onCreate()
         CoroutineScope(Dispatchers.Default).launch {
-            val config = listOf(
+            val adMobConfig =
                 AdProviderConfig(
                     AdProviderType.ADMOB,
                     "ca-app-pub-3940256099942544~3347511713"
-                ),
-                AdProviderConfig(
-                    AdProviderType.APPLOVIN,
-                    "05TMDQ5tZabpXQ45_UTbmEGNUtVAzSTzT6KmWQc5_CuWdzccS4DCITZoL3yIWUG3bbq60QC_d4WF28tUC4gVTF"
                 )
+            val applovinConfig = AdProviderConfig(
+                AdProviderType.APPLOVIN,
+                "05TMDQ5tZabpXQ45_UTbmEGNUtVAzSTzT6KmWQc5_CuWdzccS4DCITZoL3yIWUG3bbq60QC_d4WF28tUC4gVTF"
             )
-            AdManager.initialize(this@App, config)
+
+            AdManager.initialize(this@App, adMobConfig)
         }
     }
 }

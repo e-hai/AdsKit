@@ -2,6 +2,7 @@ package com.kit.ads.provider
 
 import android.app.Activity
 import android.app.Application
+import android.content.Context
 import android.view.ViewGroup
 import com.kit.ads.AdPlacement
 
@@ -30,12 +31,12 @@ interface AdProviderAdapter {
      * 加载广告
      * 该方法用于加载广告资源，在广告加载过程中会触发 `ProviderListener` 提供的回调方法。
      *
-     * @param activity 当前的 Activity，通常用于广告SDK与 UI 交互时的上下文。
+     * @param context 上下文，建议使用 Activity 以获得更好的兼容性，内部会根据需要处理。
      * @param request 广告位请求对象，包含广告的配置和广告位标识等信息。
      * @param listener 广告加载过程中触发的回调接口，用于通知广告加载的各个阶段（加载开始、加载成功、加载失败等）。
      */
     fun loadAd(
-        activity: Activity,
+        context: Context,
         request: AdPlacement,
         listener: ProviderListener
     )

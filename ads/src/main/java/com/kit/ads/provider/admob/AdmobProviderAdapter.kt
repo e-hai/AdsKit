@@ -83,22 +83,28 @@ internal class AdmobProviderAdapter : AdProviderAdapter {
     }
 
     override fun loadAd(
-        activity: Activity,
+        context: Context,
         request: AdPlacement,
         listener: ProviderListener
     ) {
         if (!isInitialized) {
             pendingActions.add(
                 Runnable {
-                    loadAd(activity, request, listener)
+                    if (context is Activity) {
+                        if (!context.isFinishing && !context.isDestroyed) {
+                            loadAd(context, request, listener)
+                        }
+                    } else {
+                        loadAd(context, request, listener)
+                    }
                 }
             )
             return
         }
         when (request.adType) {
-            AdType.BANNER -> loadBanner(activity, request, listener)
-            AdType.SPLASH -> loadSplash(activity, request, listener)
-            AdType.REWARDED -> loadRewarded(activity, request, listener)
+            AdType.BANNER -> loadBanner(context, request, listener)
+            AdType.SPLASH -> loadSplash(context, request, listener)
+            AdType.REWARDED -> loadRewarded(context, request, listener)
         }
     }
 
@@ -113,16 +119,16 @@ internal class AdmobProviderAdapter : AdProviderAdapter {
      * Admob的Banner广告是没有关闭按钮的
      * **/
     private fun loadBanner(
-        activity: Activity,
+        context: Context,
         request: AdPlacement,
         listener: ProviderListener
     ) {
 
-        val ad = AdView(activity).apply {
+        val ad = AdView(context).apply {
             adUnitId = if (BuildConfig.DEBUG) DEBUG_BANNER_AD_UNIT_ID else request.adUnitId
             // Stretch to the width of the screen for banners to be fully functional
             // 宽充满屏幕，高度50dp为最理想比例
-            val adWidth = defaultBannerAdWidth(activity)
+            val adWidth = defaultBannerAdWidth(context)
             Log.d(TAG, "广告宽=$adWidth")
             val adSize = AdSize.getInlineAdaptiveBannerAdSize(adWidth, 50)
             setAdSize(adSize)
@@ -181,14 +187,14 @@ internal class AdmobProviderAdapter : AdProviderAdapter {
     }
 
     private fun loadRewarded(
-        activity: Activity,
+        context: Context,
         request: AdPlacement,
         listener: ProviderListener
     ) {
         val adUnitId =
             if (BuildConfig.DEBUG) DEBUG_REWARDED_AD_UNIT_ID else request.adUnitId
         RewardedAd.load(
-            activity,
+            context,
             adUnitId,
             AdRequest.Builder().build(),
             object : RewardedAdLoadCallback() {
@@ -232,12 +238,13 @@ internal class AdmobProviderAdapter : AdProviderAdapter {
 
 
     private fun loadSplash(
-        activity: Activity,
+        context: Context,
         request: AdPlacement,
         listener: ProviderListener
     ) {
         val adUnitId = if (BuildConfig.DEBUG) DEBUG_OPEN_AD_UNIT_ID else request.adUnitId
-        AppOpenAd.load(activity, adUnitId, AdRequest.Builder().build(),
+        AppOpenAd.load(
+            context, adUnitId, AdRequest.Builder().build(),
             object : AppOpenAd.AppOpenAdLoadCallback() {
                 override fun onAdLoaded(ad: AppOpenAd) {
                     ad.fullScreenContentCallback = object : FullScreenContentCallback() {

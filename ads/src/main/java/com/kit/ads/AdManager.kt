@@ -2,6 +2,7 @@ package com.kit.ads
 
 import android.app.Activity
 import android.app.Application
+import android.content.Context
 import android.util.Log
 import com.kit.ads.event.AdEventObserver
 import com.kit.ads.event.AdEventObserverManager
@@ -10,83 +11,79 @@ import com.kit.ads.event.InitSuccess
 import com.kit.ads.provider.AdProviderAdapter
 import com.kit.ads.provider.AdProviderAdapterFactory
 import com.kit.ads.provider.AdProviderConfig
-import com.kit.ads.provider.AdProviderType
 
 
 object AdManager {
     // 标签，用于日志输出
     const val TAG = "AdManager"
 
-    // 存储广告提供商适配器
-    private val adProviderAdapters: MutableMap<AdProviderType, AdProviderAdapter> = mutableMapOf()
+    // 存储唯一的广告提供商适配器
+    private var adProviderAdapter: AdProviderAdapter? = null
 
     // 事件观察者管理器，用于管理和通知广告事件
     private val observerManager = AdEventObserverManager()
 
     /**
-     * 初始化所有广告提供商适配器
+     * 初始化广告提供商适配器
      * @param context 应用的上下文
-     * @param providerConfigs 广告提供商的配置列表，外部传入
+     * @param config 广告提供商的配置
      */
-    fun initialize(context: Application, providerConfigs: List<AdProviderConfig>) {
-        // 遍历广告提供商配置，初始化适配器
-        providerConfigs.forEach { config ->
-            val providerType = config.providerType
-            val adapter = AdProviderAdapterFactory.create(providerType)
+    fun initialize(context: Application, config: AdProviderConfig) {
+        val providerType = config.providerType
+        val adapter = AdProviderAdapterFactory.create(providerType)
 
-            // 初始化广告适配器，完成后通知观察者
-            adapter.initialize(context, config) { success ->
-                val eventType =
-                    if (success) InitSuccess(providerType) else InitFailure(providerType)
-                observerManager.notifyObservers(eventType)
-            }
-
-            // 将适配器加入管理列表
-            adProviderAdapters[providerType] = adapter
+        // 初始化广告适配器，完成后通知观察者
+        adapter.initialize(context, config) { success ->
+            val eventType =
+                if (success) InitSuccess(providerType)
+                else InitFailure(providerType)
+            observerManager.notifyObservers(eventType)
         }
+
+        // 保存唯一的适配器
+        adProviderAdapter = adapter
     }
 
     /**
      * 开启调试模式，显示广告SDK的调试信息
      * @param activity 当前Activity
-     * @param providerType 广告提供商类型
      */
-    fun openDebug(activity: Activity, providerType: AdProviderType) {
-        adProviderAdapters[providerType]?.openDebug(activity)
-            ?: Log.e(TAG, "No adapter found for provider: ${providerType.name}")
+    fun openDebug(activity: Activity) {
+        adProviderAdapter?.openDebug(activity)
+            ?: Log.e(TAG, "No adapter initialized. Please call initialize first.")
     }
 
 
     /**
      * 加载广告数据
-     * @param activity 当前Activity
+     * @param context 上下文
      * @param placement 广告触发点请求
      * @param adListener 广告回调监听器
      */
-    fun loadAd(activity: Activity, placement: AdPlacement, adListener: AdListener) {
-        executeAdPlacement(activity, placement, adListener)
+    fun loadAd(context: Context, placement: AdPlacement, adListener: AdListener) {
+        executeAdPlacement(context, placement, adListener)
     }
 
     /**
      * 构建并执行广告加载
-     * @param activity 当前Activity
-     * @param triggerPoint 广告触发点请求
+     * @param context 上下文
+     * @param placement 广告触发点请求
      * @param adListener 广告回调监听器
      */
     private fun executeAdPlacement(
-        activity: Activity,
+        context: Context,
         placement: AdPlacement,
         adListener: AdListener
     ) {
-        val adapter = adProviderAdapters[placement.providerType]
+        val adapter = adProviderAdapter
 
         if (adapter == null) {
-            // 如果没有找到对应的适配器，调用失败回调
-            adListener.onAdFailedToLoad("No adapter found for provider: ${placement.providerType}")
+            // 如果没有初始化适配器，调用失败回调
+            adListener.onAdFailedToLoad("AdManager not initialized. No adapter found.")
         } else {
-            // 构建并执行广告加载
+            // 使用当前已初始化的适配器执行广告加载
             AdPlacementExecutor.build(placement, adapter, observerManager)
-                .loadAd(activity, adListener)
+                .loadAd(context, adListener)
         }
     }
 

@@ -39,7 +39,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showDebug() {
-        AdManager.openDebug(this, AdProviderType.APPLOVIN)
+        AdManager.openDebug(this)
     }
 
     private fun defaultBannerAdWidth(): Int {

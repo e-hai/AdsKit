@@ -2,6 +2,7 @@ package com.kit.ads.provider.applovin
 
 import android.app.Activity
 import android.app.Application
+import android.content.Context
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import com.kit.ads.AdType
@@ -24,6 +25,7 @@ import com.applovin.sdk.AppLovinSdk
 import com.applovin.sdk.AppLovinSdkInitializationConfiguration
 import com.applovin.sdk.AppLovinSdkUtils
 import com.google.android.gms.ads.identifier.AdvertisingIdClient
+import java.lang.ref.WeakReference
 import java.util.Collections
 
 internal class ApplovinProviderAdapter : AdProviderAdapter {
@@ -75,31 +77,37 @@ internal class ApplovinProviderAdapter : AdProviderAdapter {
     }
 
     override fun loadAd(
-        activity: Activity,
+        context: Context,
         request: AdPlacement,
         listener: ProviderListener
     ) {
         if (!isInitialized) {
             pendingActions.add(
                 Runnable {
-                    loadAd(activity, request, listener)
+                    if (context is Activity) {
+                        if (!context.isFinishing && !context.isDestroyed) {
+                            loadAd(context, request, listener)
+                        }
+                    } else {
+                        loadAd(context, request, listener)
+                    }
                 }
             )
             return
         }
         when (request.adType) {
-            AdType.BANNER -> loadBanner(activity, request, listener)
-            AdType.SPLASH -> loadSplash(activity, request, listener)
-            AdType.REWARDED -> loadRewarded(activity, request, listener)
+            AdType.BANNER -> loadBanner(context, request, listener)
+            AdType.SPLASH -> loadSplash(context, request, listener)
+            AdType.REWARDED -> loadRewarded(context, request, listener)
         }
     }
 
     private fun loadRewarded(
-        activity: Activity,
+        context: Context,
         request: AdPlacement,
         listener: ProviderListener
     ) {
-        val ad = MaxRewardedAd.getInstance(request.adUnitId, activity)
+        val ad = MaxRewardedAd.getInstance(request.adUnitId, context)
         ad.setListener(object : MaxRewardedAdListener {
             override fun onAdLoaded(maxAd: MaxAd) {
                 listener.onAdLoaded(ad)
@@ -136,11 +144,11 @@ internal class ApplovinProviderAdapter : AdProviderAdapter {
     }
 
     private fun loadSplash(
-        activity: Activity,
+        context: Context,
         request: AdPlacement,
         listener: ProviderListener
     ) {
-        val ad = MaxAppOpenAd(request.adUnitId, activity)
+        val ad = MaxAppOpenAd(request.adUnitId, context)
         ad.setListener(object : MaxAdListener {
             override fun onAdLoaded(maxAd: MaxAd) {
                 listener.onAdLoaded(ad)
@@ -172,11 +180,11 @@ internal class ApplovinProviderAdapter : AdProviderAdapter {
     }
 
     private fun loadBanner(
-        activity: Activity,
+        context: Context,
         request: AdPlacement,
         listener: ProviderListener
     ) {
-        val ad = MaxAdView(request.adUnitId, activity)
+        val ad = MaxAdView(request.adUnitId, context)
         ad.setListener(object : MaxAdViewAdListener {
             override fun onAdLoaded(maxAd: MaxAd) {
                 listener.onAdLoaded(ad)
@@ -215,7 +223,7 @@ internal class ApplovinProviderAdapter : AdProviderAdapter {
         // Stretch to the width of the screen for banners to be fully functional
         // 宽充满屏幕，高度50dp为最理想比例
         val width = ViewGroup.LayoutParams.MATCH_PARENT
-        val heightPx = AppLovinSdkUtils.dpToPx(activity, 50)
+        val heightPx = AppLovinSdkUtils.dpToPx(context, 50)
         ad.layoutParams = FrameLayout.LayoutParams(width, heightPx)
         ad.loadAd()
     }
