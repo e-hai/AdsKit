@@ -1,29 +1,19 @@
 package com.kit.ads.sample
 
 import android.app.Application
-import com.kit.ads.AdManager
-import com.kit.ads.provider.AdProviderConfig
-import com.kit.ads.provider.AdProviderType
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
+import com.kit.ads.AdsManager
+import com.kit.ads.provider.AdsProviderConfig
+import com.kit.ads.provider.AdsProviderType
 
 class App : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        CoroutineScope(Dispatchers.Default).launch {
-            val adMobConfig =
-                AdProviderConfig(
-                    AdProviderType.ADMOB,
-                    "ca-app-pub-3940256099942544~3347511713"
-                )
-            val applovinConfig = AdProviderConfig(
-                AdProviderType.APPLOVIN,
-                "05TMDQ5tZabpXQ45_UTbmEGNUtVAzSTzT6KmWQc5_CuWdzccS4DCITZoL3yIWUG3bbq60QC_d4WF28tUC4gVTF"
+        val adMobConfig =
+            AdsProviderConfig(
+                AdsProviderType.ADMOB,
+                "ca-app-pub-3940256099942544~3347511713"
             )
-
-            AdManager.initialize(this@App, adMobConfig)
-        }
+        AdsManager.initialize(this@App, adMobConfig)
     }
 }

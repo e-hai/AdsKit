@@ -3,15 +3,15 @@ package com.kit.ads.provider.admob
 import android.app.Activity
 import android.app.Application
 import android.content.Context
-import android.util.Log
+import com.kit.ads.AdsLogger
 import android.view.ViewGroup
-import com.kit.ads.AdManager.TAG
-import com.kit.ads.AdPlacement
-import com.kit.ads.provider.AdProviderAdapter
-import com.kit.ads.provider.AdProviderConfig
-import com.kit.ads.AdType
+import com.kit.ads.AdsManager.TAG
+import com.kit.ads.AdsRequest
+import com.kit.ads.provider.AdsProviderAdapter
+import com.kit.ads.provider.AdsProviderConfig
+import com.kit.ads.AdsType
 import com.kit.ads.BuildConfig
-import com.kit.ads.provider.ProviderListener
+import com.kit.ads.provider.AdsProviderListener
 import com.google.android.gms.ads.AdError
 import com.google.android.gms.ads.AdListener
 import com.google.android.gms.ads.AdRequest
@@ -27,14 +27,11 @@ import com.google.android.gms.ads.rewarded.RewardedAd
 import com.google.android.gms.ads.rewarded.RewardedAdLoadCallback
 
 
-internal class AdmobProviderAdapter : AdProviderAdapter {
-
-    private var isInitialized = false
-    private val pendingActions: MutableList<Runnable> = mutableListOf()
+internal class AdmobProviderAdapter : AdsProviderAdapter {
 
     override fun initialize(
         context: Application,
-        config: AdProviderConfig,
+        config: AdsProviderConfig,
         listener: (success: Boolean) -> Unit
     ) {
         try {
@@ -43,32 +40,30 @@ internal class AdmobProviderAdapter : AdProviderAdapter {
                 val statusMap = initializationStatus.adapterStatusMap
                 for (adapterClass in statusMap.keys) {
                     val status = statusMap[adapterClass]
-                    Log.d(
+                    AdsLogger.d(
                         TAG, String.format(
                             "Adapter name: %s, Description: %s, Latency: %d",
                             adapterClass, status!!.description, status.latency
                         )
                     )
                 }
-                isInitialized = true
                 listener.invoke(true)
-                executePendingActions()
             }
         } catch (e: Exception) {
             e.printStackTrace()
-            isInitialized = false
             listener.invoke(false)
-            pendingActions.clear()
         }
 
     }
 
     /**
-     * 检查 logcat 输出，以查找如下所示的消息，其中显示您的设备 ID 以及如何将其添加为测试设备：
+     * 检查 logcat 输出，查找类似以下格式的日志，其中会显示您的设备 ID 及如何将其添加为测试设备：
      *
+     * 示例 Logcat 输出：
      * I/Ads: Use RequestConfiguration.Builder.setTestDeviceIds(Arrays.asList("33BE2250B43518CCDA7DE426D04EE231"))
-     * to get test ads on this device."
-     * 将测试设备 ID 复制到剪贴板。
+     * 即可在该设备上获取测试广告。
+     *
+     * 将测试设备 ID 复制到下方列表后，即可在调试设备上获取测试广告。
      * **/
     override fun openDebug(activity: Activity) {
         val testDeviceIds = listOf("9204E5C14728DD6DD82CE0A440ED41F5")
@@ -77,42 +72,21 @@ internal class AdmobProviderAdapter : AdProviderAdapter {
             .build()
         MobileAds.setRequestConfiguration(configuration)
         MobileAds.openAdInspector(activity) { error ->
-            // Error will be non-null if ad inspector closed due to an error.
-            Log.d(TAG, "Admob openAdInspector=${error?.message}")
+            // 若 error 非 null 表示广告检查器因错误关闭。
+            AdsLogger.d(TAG, "Admob openAdInspector=${error?.message}")
         }
     }
 
     override fun loadAd(
         context: Context,
-        request: AdPlacement,
-        listener: ProviderListener
+        request: AdsRequest,
+        listener: AdsProviderListener
     ) {
-        if (!isInitialized) {
-            pendingActions.add(
-                Runnable {
-                    if (context is Activity) {
-                        if (!context.isFinishing && !context.isDestroyed) {
-                            loadAd(context, request, listener)
-                        }
-                    } else {
-                        loadAd(context, request, listener)
-                    }
-                }
-            )
-            return
-        }
         when (request.adType) {
-            AdType.BANNER -> loadBanner(context, request, listener)
-            AdType.SPLASH -> loadSplash(context, request, listener)
-            AdType.REWARDED -> loadRewarded(context, request, listener)
+            AdsType.BANNER -> loadBanner(context, request, listener)
+            AdsType.SPLASH -> loadSplash(context, request, listener)
+            AdsType.REWARDED -> loadRewarded(context, request, listener)
         }
-    }
-
-    private fun executePendingActions() {
-        for (action in pendingActions) {
-            action.run()
-        }
-        pendingActions.clear()
     }
 
     /**
@@ -120,56 +94,56 @@ internal class AdmobProviderAdapter : AdProviderAdapter {
      * **/
     private fun loadBanner(
         context: Context,
-        request: AdPlacement,
-        listener: ProviderListener
+        request: AdsRequest,
+        listener: AdsProviderListener
     ) {
 
         val ad = AdView(context).apply {
             adUnitId = if (BuildConfig.DEBUG) DEBUG_BANNER_AD_UNIT_ID else request.adUnitId
-            // Stretch to the width of the screen for banners to be fully functional
+            // 横幅广告宽度铺满屏幕以保证正常展示
             // 宽充满屏幕，高度50dp为最理想比例
             val adWidth = defaultBannerAdWidth(context)
-            Log.d(TAG, "广告宽=$adWidth")
+            AdsLogger.d(TAG, "广告宽=$adWidth")
             val adSize = AdSize.getInlineAdaptiveBannerAdSize(adWidth, 50)
             setAdSize(adSize)
         }
 
         ad.adListener = object : AdListener() {
             override fun onAdClicked() {
-                // Code to be executed when the user clicks on an ad.
+                // 用户点击广告时执行
                 listener.onAdClicked()
             }
 
             override fun onAdClosed() {
-                // Code to be executed when the user is about to return
-                // to the app after tapping on an ad.
-                Log.d(TAG, "从广告展开页面返回会被回调，并不是广告被关闭")
+                // 用户点击广告后即将返回应用时执行
+                // （并非广告关闭）
+                AdsLogger.d(TAG, "从广告展开页面返回会被回调，并不是广告被关闭")
             }
 
             override fun onAdFailedToLoad(adError: LoadAdError) {
-                // Code to be executed when an ad request fails.
-                listener.onAdFailedToLoad(adError.message)
+                // 广告请求失败时执行
+                listener.onAdFailedToLoad(adError.message, adError.code.toString())
             }
 
             override fun onAdImpression() {
-                // Code to be executed when an impression is recorded
-                // for an ad.
+                // 广告曝光记录时执行
+                // （impression 回调）
                 listener.onAdShown()
             }
 
             override fun onAdLoaded() {
-                // Code to be executed when an ad finishes loading.
+                // 广告加载完成时执行
                 listener.onAdLoaded(ad)
             }
 
             override fun onAdOpened() {
-                // Code to be executed when an ad opens an overlay that
-                // covers the screen.
-                Log.d(TAG, "广告被点击后，跳转到广告展开页面")
+                // 广告打开覆盖屏幕的浮层时执行
+                // （overlay 覆盖屏幕）
+                AdsLogger.d(TAG, "广告被点击后，跳转到广告展开页面")
             }
         }
         ad.onPaidEventListener = OnPaidEventListener { paid ->
-            Log.d(
+            AdsLogger.d(
                 TAG,
                 "收益=${paid.valueMicros}-${paid.precisionType}-${paid.currencyCode}"
             )
@@ -188,9 +162,10 @@ internal class AdmobProviderAdapter : AdProviderAdapter {
 
     private fun loadRewarded(
         context: Context,
-        request: AdPlacement,
-        listener: ProviderListener
+        request: AdsRequest,
+        listener: AdsProviderListener
     ) {
+        listener.onAdStartedToLoad()
         val adUnitId =
             if (BuildConfig.DEBUG) DEBUG_REWARDED_AD_UNIT_ID else request.adUnitId
         RewardedAd.load(
@@ -199,7 +174,7 @@ internal class AdmobProviderAdapter : AdProviderAdapter {
             AdRequest.Builder().build(),
             object : RewardedAdLoadCallback() {
                 override fun onAdFailedToLoad(adError: LoadAdError) {
-                    listener.onAdFailedToLoad(adError.message)
+                    listener.onAdFailedToLoad(adError.message, adError.code.toString())
                 }
 
                 override fun onAdLoaded(ad: RewardedAd) {
@@ -213,7 +188,8 @@ internal class AdmobProviderAdapter : AdProviderAdapter {
                         }
 
                         override fun onAdFailedToShowFullScreenContent(error: AdError) {
-                            Log.d(TAG, "广告全屏展示失败")
+                            AdsLogger.d(TAG, "广告全屏展示失败: ${error.message} (code=${error.code})")
+                            listener.onAdFailedToShow(ad, error.message, error.code.toString())
                         }
 
                         override fun onAdImpression() {
@@ -221,11 +197,11 @@ internal class AdmobProviderAdapter : AdProviderAdapter {
                         }
 
                         override fun onAdShowedFullScreenContent() {
-                            Log.d(TAG, "广告全屏展示成功")
+                            AdsLogger.d(TAG, "广告全屏展示成功")
                         }
                     }
                     ad.onPaidEventListener = OnPaidEventListener { paid ->
-                        Log.d(
+                        AdsLogger.d(
                             TAG,
                             "收益=${paid.valueMicros}-${paid.precisionType}-${paid.currencyCode}"
                         )
@@ -239,9 +215,10 @@ internal class AdmobProviderAdapter : AdProviderAdapter {
 
     private fun loadSplash(
         context: Context,
-        request: AdPlacement,
-        listener: ProviderListener
+        request: AdsRequest,
+        listener: AdsProviderListener
     ) {
+        listener.onAdStartedToLoad()
         val adUnitId = if (BuildConfig.DEBUG) DEBUG_OPEN_AD_UNIT_ID else request.adUnitId
         AppOpenAd.load(
             context, adUnitId, AdRequest.Builder().build(),
@@ -257,7 +234,8 @@ internal class AdmobProviderAdapter : AdProviderAdapter {
                         }
 
                         override fun onAdFailedToShowFullScreenContent(error: AdError) {
-                            Log.d(TAG, "广告全屏展示失败")
+                            AdsLogger.d(TAG, "广告全屏展示失败: ${error.message} (code=${error.code})")
+                            listener.onAdFailedToShow(ad, error.message, error.code.toString())
                         }
 
                         override fun onAdImpression() {
@@ -265,11 +243,11 @@ internal class AdmobProviderAdapter : AdProviderAdapter {
                         }
 
                         override fun onAdShowedFullScreenContent() {
-                            Log.d(TAG, "广告全屏展示成功")
+                            AdsLogger.d(TAG, "广告全屏展示成功")
                         }
                     }
                     ad.onPaidEventListener = OnPaidEventListener { paid ->
-                        Log.d(
+                        AdsLogger.d(
                             TAG,
                             "收益=${paid.valueMicros}-${paid.precisionType}-${paid.currencyCode}"
                         )
@@ -279,7 +257,7 @@ internal class AdmobProviderAdapter : AdProviderAdapter {
                 }
 
                 override fun onAdFailedToLoad(loadAdError: LoadAdError) {
-                    listener.onAdFailedToLoad(loadAdError.message)
+                    listener.onAdFailedToLoad(loadAdError.message, loadAdError.code.toString())
                 }
             })
     }
@@ -287,14 +265,14 @@ internal class AdmobProviderAdapter : AdProviderAdapter {
     override fun showAd(
         activity: Activity,
         container: ViewGroup,
-        request: AdPlacement,
+        request: AdsRequest,
         ad: Any,
-        listener: ProviderListener
+        listener: AdsProviderListener
     ) {
         when (request.adType) {
-            AdType.SPLASH -> showSplash(activity, ad as AppOpenAd)
-            AdType.BANNER -> showBanner(container, ad as AdView)
-            AdType.REWARDED -> showRewarded(activity, ad as RewardedAd, listener)
+            AdsType.SPLASH -> showSplash(activity, ad as AppOpenAd)
+            AdsType.BANNER -> showBanner(container, ad as AdView)
+            AdsType.REWARDED -> showRewarded(activity, ad as RewardedAd, listener)
         }
     }
 
@@ -307,9 +285,9 @@ internal class AdmobProviderAdapter : AdProviderAdapter {
     }
 
 
-    private fun showRewarded(activity: Activity, ad: RewardedAd, listener: ProviderListener) {
+    private fun showRewarded(activity: Activity, ad: RewardedAd, listener: AdsProviderListener) {
         ad.show(activity) { rewardItem ->
-            Log.d(
+            AdsLogger.d(
                 TAG,
                 "reward=${rewardItem.amount}-${rewardItem.type}"
             )
@@ -321,6 +299,16 @@ internal class AdmobProviderAdapter : AdProviderAdapter {
         ad.show(activity)
     }
 
+    override fun destroyAd(ad: Any) {
+        when (ad) {
+            is AdView -> {
+                ad.removeAllViews()
+                ad.destroy()
+                AdsLogger.d(TAG, "AdMob AdView destroyed")
+            }
+            // RewardedAd 和 AppOpenAd 是系统管理的，不需要手动 destroy
+        }
+    }
 
     companion object {
 

@@ -3,14 +3,15 @@ package com.kit.ads.provider.applovin
 import android.app.Activity
 import android.app.Application
 import android.content.Context
+import com.kit.ads.AdsLogger
 import android.view.ViewGroup
 import android.widget.FrameLayout
-import com.kit.ads.AdType
+import com.kit.ads.AdsType
 import com.kit.ads.BuildConfig
-import com.kit.ads.AdPlacement
-import com.kit.ads.provider.AdProviderAdapter
-import com.kit.ads.provider.AdProviderConfig
-import com.kit.ads.provider.ProviderListener
+import com.kit.ads.AdsRequest
+import com.kit.ads.provider.AdsProviderAdapter
+import com.kit.ads.provider.AdsProviderConfig
+import com.kit.ads.provider.AdsProviderListener
 import com.applovin.mediation.MaxAd
 import com.applovin.mediation.MaxAdListener
 import com.applovin.mediation.MaxAdViewAdListener
@@ -25,51 +26,37 @@ import com.applovin.sdk.AppLovinSdk
 import com.applovin.sdk.AppLovinSdkInitializationConfiguration
 import com.applovin.sdk.AppLovinSdkUtils
 import com.google.android.gms.ads.identifier.AdvertisingIdClient
-import java.lang.ref.WeakReference
+import com.kit.ads.AdsManager.TAG
 import java.util.Collections
 
-internal class ApplovinProviderAdapter : AdProviderAdapter {
-
-    private var isInitialized = false
-    private val pendingActions: MutableList<Runnable> = mutableListOf()
+internal class ApplovinProviderAdapter : AdsProviderAdapter {
 
     override fun initialize(
         context: Application,
-        config: AdProviderConfig,
+        config: AdsProviderConfig,
         listener: (success: Boolean) -> Unit
     ) {
         try {
-            // Enable test mode by default for the current device. Cannot be run on the main thread.
+            // 默认启用当前设备的测试模式。不能在主线程运行。
             val currentGaid = AdvertisingIdClient.getAdvertisingIdInfo(context).id
 
-            // Create the initialization configuration
+            // 创建初始化配置
             val initConfig = AppLovinSdkInitializationConfiguration.builder(config.apiKey, context)
                 .setTestDeviceAdvertisingIds(Collections.singletonList(currentGaid))
                 .setMediationProvider(AppLovinMediationProvider.MAX)
                 .build()
 
-            // Initialize the SDK with the configuration
+            // 使用配置初始化 SDK
             val appLovinSdk = AppLovinSdk.getInstance(context)
             appLovinSdk.settings.setVerboseLogging(BuildConfig.DEBUG)
             appLovinSdk.initialize(initConfig) {
-                // Start loading ads
-                isInitialized = true
+                // 开始加载广告
                 listener.invoke(true)
-                executePendingActions()
             }
         } catch (e: Exception) {
             e.printStackTrace()
-            isInitialized = false
             listener.invoke(false)
-            pendingActions.clear()
         }
-    }
-
-    private fun executePendingActions() {
-        for (action in pendingActions) {
-            action.run()
-        }
-        pendingActions.clear()
     }
 
     override fun openDebug(activity: Activity) {
@@ -78,62 +65,56 @@ internal class ApplovinProviderAdapter : AdProviderAdapter {
 
     override fun loadAd(
         context: Context,
-        request: AdPlacement,
-        listener: ProviderListener
+        request: AdsRequest,
+        listener: AdsProviderListener
     ) {
-        if (!isInitialized) {
-            pendingActions.add(
-                Runnable {
-                    if (context is Activity) {
-                        if (!context.isFinishing && !context.isDestroyed) {
-                            loadAd(context, request, listener)
-                        }
-                    } else {
-                        loadAd(context, request, listener)
-                    }
-                }
-            )
-            return
-        }
         when (request.adType) {
-            AdType.BANNER -> loadBanner(context, request, listener)
-            AdType.SPLASH -> loadSplash(context, request, listener)
-            AdType.REWARDED -> loadRewarded(context, request, listener)
+            AdsType.BANNER -> loadBanner(context, request, listener)
+            AdsType.SPLASH -> loadSplash(context, request, listener)
+            AdsType.REWARDED -> loadRewarded(context, request, listener)
         }
     }
 
     private fun loadRewarded(
         context: Context,
-        request: AdPlacement,
-        listener: ProviderListener
+        request: AdsRequest,
+        listener: AdsProviderListener
     ) {
-        val ad = MaxRewardedAd.getInstance(request.adUnitId, context)
+        listener.onAdStartedToLoad()
+        val ad = MaxRewardedAd.getInstance(request.adUnitId)
         ad.setListener(object : MaxRewardedAdListener {
             override fun onAdLoaded(maxAd: MaxAd) {
+                AdsLogger.d(TAG, "激励广告加载成功")
                 listener.onAdLoaded(ad)
             }
 
             override fun onAdDisplayed(maxAd: MaxAd) {
+                AdsLogger.d(TAG, "激励广告展示成功")
                 listener.onAdShown()
             }
 
             override fun onAdHidden(maxAd: MaxAd) {
+                AdsLogger.d(TAG, "激励广告关闭")
                 listener.onAdClosed()
             }
 
             override fun onAdClicked(maxAd: MaxAd) {
+                AdsLogger.d(TAG, "激励广告被点击")
                 listener.onAdClicked()
             }
 
             override fun onAdLoadFailed(msg: String, error: MaxError) {
-                listener.onAdFailedToLoad(error.message)
+                AdsLogger.d(TAG, "激励广告加载失败: ${error.message} (code=${error.code})")
+                listener.onAdFailedToLoad(error.message, error.code.toString())
             }
 
             override fun onAdDisplayFailed(maxAd: MaxAd, error: MaxError) {
-                listener.onAdFailedToLoad(error.message)
+                AdsLogger.d(TAG, "激励广告展示失败: ${error.message} (code=${error.code})")
+                listener.onAdFailedToLoad(error.message, "DISPLAY_" + error.code)
             }
 
             override fun onUserRewarded(maxAd: MaxAd, maxReward: MaxReward) {
+                AdsLogger.d(TAG, "用户获得奖励: amount=${maxReward.amount}")
                 listener.onAdUserEarnedReward()
             }
         })
@@ -145,32 +126,40 @@ internal class ApplovinProviderAdapter : AdProviderAdapter {
 
     private fun loadSplash(
         context: Context,
-        request: AdPlacement,
-        listener: ProviderListener
+        request: AdsRequest,
+        listener: AdsProviderListener
     ) {
-        val ad = MaxAppOpenAd(request.adUnitId, context)
+        listener.onAdStartedToLoad()
+        val ad = MaxAppOpenAd(request.adUnitId)
         ad.setListener(object : MaxAdListener {
             override fun onAdLoaded(maxAd: MaxAd) {
+                AdsLogger.d(TAG, "开屏广告加载成功")
                 listener.onAdLoaded(ad)
             }
 
             override fun onAdDisplayed(maxAd: MaxAd) {
+                AdsLogger.d(TAG, "开屏广告展示成功")
                 listener.onAdShown()
             }
 
             override fun onAdHidden(maxAd: MaxAd) {
+                AdsLogger.d(TAG, "开屏广告关闭")
                 listener.onAdClosed()
             }
 
             override fun onAdClicked(maxAd: MaxAd) {
+                AdsLogger.d(TAG, "开屏广告被点击")
                 listener.onAdClicked()
             }
 
             override fun onAdLoadFailed(msg: String, error: MaxError) {
-                listener.onAdFailedToLoad(error.message)
+                AdsLogger.d(TAG, "开屏广告加载失败: ${error.message} (code=${error.code})")
+                listener.onAdFailedToLoad(error.message, error.code.toString())
             }
 
             override fun onAdDisplayFailed(maxAd: MaxAd, error: MaxError) {
+                AdsLogger.d(TAG, "开屏广告展示失败: ${error.message} (code=${error.code})")
+                listener.onAdFailedToLoad(error.message, "DISPLAY_" + error.code)
             }
         })
         ad.setRevenueListener {
@@ -181,33 +170,40 @@ internal class ApplovinProviderAdapter : AdProviderAdapter {
 
     private fun loadBanner(
         context: Context,
-        request: AdPlacement,
-        listener: ProviderListener
+        request: AdsRequest,
+        listener: AdsProviderListener
     ) {
-        val ad = MaxAdView(request.adUnitId, context)
+        listener.onAdStartedToLoad()
+        val ad = MaxAdView(request.adUnitId)
         ad.setListener(object : MaxAdViewAdListener {
             override fun onAdLoaded(maxAd: MaxAd) {
+                AdsLogger.d(TAG, "横幅广告加载成功")
                 listener.onAdLoaded(ad)
             }
 
             override fun onAdDisplayed(maxAd: MaxAd) {
+                AdsLogger.d(TAG, "横幅广告展示成功")
                 listener.onAdShown()
             }
 
             override fun onAdHidden(maxAd: MaxAd) {
+                AdsLogger.d(TAG, "横幅广告关闭")
                 listener.onAdClosed()
             }
 
             override fun onAdClicked(maxAd: MaxAd) {
+                AdsLogger.d(TAG, "横幅广告被点击")
                 listener.onAdClicked()
             }
 
             override fun onAdLoadFailed(msg: String, error: MaxError) {
-                listener.onAdFailedToLoad(error.message)
+                AdsLogger.d(TAG, "横幅广告加载失败: ${error.message} (code=${error.code})")
+                listener.onAdFailedToLoad(error.message, error.code.toString())
             }
 
             override fun onAdDisplayFailed(maxAd: MaxAd, error: MaxError) {
-                listener.onAdFailedToLoad(error.message)
+                AdsLogger.d(TAG, "横幅广告展示失败: ${error.message} (code=${error.code})")
+                listener.onAdFailedToLoad(error.message, "DISPLAY_" + error.code)
             }
 
             override fun onAdExpanded(maxAd: MaxAd) {
@@ -220,7 +216,7 @@ internal class ApplovinProviderAdapter : AdProviderAdapter {
             listener.onAdPaidEvent()
         }
 
-        // Stretch to the width of the screen for banners to be fully functional
+        // 横幅广告宽度铺满屏幕以保证正常展示
         // 宽充满屏幕，高度50dp为最理想比例
         val width = ViewGroup.LayoutParams.MATCH_PARENT
         val heightPx = AppLovinSdkUtils.dpToPx(context, 50)
@@ -231,14 +227,14 @@ internal class ApplovinProviderAdapter : AdProviderAdapter {
     override fun showAd(
         activity: Activity,
         container: ViewGroup,
-        request: AdPlacement,
+        request: AdsRequest,
         ad: Any,
-        listener: ProviderListener
+        listener: AdsProviderListener
     ) {
         when (request.adType) {
-            AdType.SPLASH -> showSplash(ad as MaxAppOpenAd)
-            AdType.BANNER -> showBanner(container, ad as MaxAdView)
-            AdType.REWARDED -> showRewarded(activity, ad as MaxRewardedAd)
+            AdsType.SPLASH -> showSplash(ad as MaxAppOpenAd)
+            AdsType.BANNER -> showBanner(container, ad as MaxAdView)
+            AdsType.REWARDED -> showRewarded(activity, ad as MaxRewardedAd)
         }
     }
 
@@ -256,4 +252,18 @@ internal class ApplovinProviderAdapter : AdProviderAdapter {
     private fun showSplash(ad: MaxAppOpenAd) {
         ad.showAd()
     }
+
+    override fun destroyAd(ad: Any) {
+        when (ad) {
+            is MaxAdView -> {
+                ad.removeAllViews()
+                ad.setListener(null)
+                ad.destroy()
+
+                AdsLogger.d(TAG, "AppLovin MaxAdView destroyed")
+            }
+            // MaxRewardedAd 和 MaxAppOpenAd 是单例/系统管理的，不需要手动 destroy
+        }
+    }
+
 }

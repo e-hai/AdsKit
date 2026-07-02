@@ -1,7 +1,7 @@
 package com.kit.ads.ump
 
 import android.app.Activity
-import android.util.Log
+import com.kit.ads.AdsLogger
 import com.kit.ads.BuildConfig
 import com.google.android.ump.ConsentDebugSettings
 import com.google.android.ump.ConsentInformation
@@ -57,7 +57,7 @@ object UMP {
         consentInformation.requestConsentInfoUpdate(activity, params,
             {
                 if (activity.isFinishing) {
-                    Log.e(TAG, "activity.isFinishing") // 如果 Activity 正在销毁，则不处理
+                    AdsLogger.e(TAG, "activity.isFinishing") // 如果 Activity 正在销毁，则不处理
                 } else {
                     // 如果用户的同意信息更新成功，加载并展示同意表单
                     showConsentForm(consentInformation, activity, callBack)
@@ -65,7 +65,7 @@ object UMP {
             },
             { requestConsentError ->
                 // 如果请求隐私同意信息失败
-                Log.d(
+                AdsLogger.d(
                     TAG, "requestConsentError:" + String.format(
                         "%s: %s",
                         requestConsentError.errorCode,
@@ -73,7 +73,7 @@ object UMP {
                     )
                 )
                 if (activity.isFinishing) {
-                    Log.e(TAG, "activity.isFinishing")
+                    AdsLogger.e(TAG, "activity.isFinishing")
                 } else {
                     // 如果获取同意信息失败，继续检查当前用户的隐私同意状态
                     checkUser(consentInformation, callBack)
@@ -96,7 +96,7 @@ object UMP {
         // 加载并展示同意表单
         UserMessagingPlatform.loadAndShowConsentFormIfRequired(activity) { loadAndShowError ->
             // 如果加载或展示表单失败
-            Log.d(
+            AdsLogger.d(
                 TAG, "showConsentForm:" + String.format(
                     "%s: %s",
                     loadAndShowError?.errorCode,
@@ -104,7 +104,7 @@ object UMP {
                 )
             )
             if (activity.isFinishing) {
-                Log.e(TAG, "activity.isFinishing")
+                AdsLogger.e(TAG, "activity.isFinishing")
             } else {
                 // 如果同意表单显示失败，检查当前用户的隐私同意状态
                 checkUser(consentInformation, callBack)
@@ -125,11 +125,11 @@ object UMP {
         if (consentInformation.canRequestAds()) {
             // 如果用户同意收集广告数据
             callBack.invoke(true)
-            Log.d(TAG, "用户同意")
+            AdsLogger.d(TAG, "用户同意")
         } else {
             // 如果用户拒绝收集广告数据
             callBack.invoke(false)
-            Log.d(TAG, "用户拒绝")
+            AdsLogger.d(TAG, "用户拒绝")
         }
     }
 }

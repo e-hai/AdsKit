@@ -6,7 +6,7 @@ package com.kit.ads
  * 该枚举类定义了广告的不同类型。每种广告类型可能会有不同的加载和展示方式。
  * 开发者可以通过指定广告类型来确定加载或展示的广告形式。
  */
-enum class AdType {
+enum class AdsType {
     /**
      * 横幅广告
      *

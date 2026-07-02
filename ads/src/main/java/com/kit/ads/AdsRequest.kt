@@ -1,6 +1,6 @@
 package com.kit.ads
 
-import com.kit.ads.provider.AdProviderType
+import com.kit.ads.provider.AdsProviderType
 
 /**
  * 广告触发点配置
@@ -8,7 +8,7 @@ import com.kit.ads.provider.AdProviderType
  * 该类用于标识广告触发的特定位置或场景，例如应用中的某个界面或功能模块。
  * 由调用者定义，用于决定何时以及在哪个位置触发广告的加载和展示。
  */
-data class AdPlacement(
+data class AdsRequest(
     /**
      * 广告位标识
      *
@@ -28,13 +28,13 @@ data class AdPlacement(
      *
      * 定义广告的类型，如插屏广告、激励广告等，广告类型通常会影响广告的加载和展示方式。
      */
-    val adType: AdType,  // 广告类型
+    val adType: AdsType,  // 广告类型
 
     /**
      * 广告提供商类型
      *
      * 指定广告提供商的类型，广告SDK根据该类型加载相应的广告SDK进行展示。
      */
-    val providerType: AdProviderType,  // 广告提供商类型
+    val providerType: AdsProviderType,  // 广告提供商类型
 )
 

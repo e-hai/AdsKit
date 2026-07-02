@@ -2,16 +2,16 @@ package com.kit.ads.sample
 
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
-import android.util.Log
+import com.kit.ads.AdsLogger
 import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
 import com.kit.ads.AdCallback
-import com.kit.ads.AdEntity
-import com.kit.ads.AdManager
-import com.kit.ads.AdPlacement
-import com.kit.ads.AdType
-import com.kit.ads.provider.AdProviderType
+import com.kit.ads.AdsEntity
+import com.kit.ads.AdsManager
+import com.kit.ads.AdsRequest
+import com.kit.ads.AdsType
+import com.kit.ads.provider.AdsProviderType
 import com.kit.ads.ump.UMP
 
 class MainActivity : AppCompatActivity() {
@@ -32,14 +32,14 @@ class MainActivity : AppCompatActivity() {
             showDebug()
         }
         val adWidth = defaultBannerAdWidth()
-        Log.d("Main", "屏幕宽=$adWidth")
+        AdsLogger.d("Main", "屏幕宽=$adWidth")
         UMP.start(this) {
-            Log.d("Main", "UMP=$it")
+            AdsLogger.d("Main", "UMP=$it")
         }
     }
 
     private fun showDebug() {
-        AdManager.openDebug(this)
+        AdsManager.openDebug(this)
     }
 
     private fun defaultBannerAdWidth(): Int {
@@ -50,19 +50,20 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showBanner(viewGroup: ViewGroup) {
-        val placementConfig = AdPlacement(
+        val placementConfig = AdsRequest(
             "1",
-            "admob_unit_id_666",
-            AdType.BANNER,
-            AdProviderType.APPLOVIN
+            "ca-app-pub-3940256099942544/9214589741",
+            AdsType.BANNER,
+            AdsProviderType.ADMOB
         )
 
-        AdManager.loadAd(this, placementConfig, object : AdCallback() {
-            override fun onAdLoaded(ad: AdEntity) {
+        AdsManager.loadAd(this, placementConfig, object : AdCallback() {
+            override fun onAdLoaded(ad: AdsEntity) {
                 ad.show(this@MainActivity, viewGroup)
             }
 
-            override fun onAdFailedToLoad(error: String) {
+            override fun onAdFailedToLoad(error: String, errorCode: String?) {
+                AdsLogger.e("Main", "广告加载失败: $error (code=$errorCode)")
             }
 
             override fun onAdClosed() {
@@ -71,19 +72,21 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showReward(viewGroup: ViewGroup) {
-        val placementConfig = AdPlacement(
+        val placementConfig = AdsRequest(
             "1",
-            "admob_unit_id_666",
-            AdType.REWARDED,
-            AdProviderType.ADMOB
+            "ca-app-pub-3940256099942544/5224354917",
+            AdsType.REWARDED,
+            AdsProviderType.ADMOB
         )
 
-        AdManager.loadAd(this, placementConfig, object : AdCallback() {
-            override fun onAdLoaded(ad: AdEntity) {
+        AdsManager.loadAd(this, placementConfig, object : AdCallback() {
+            override fun onAdLoaded(ad: AdsEntity) {
+                // REWARDED 不需要使用 banner 容器，仅需一个有效的 ViewGroup 占位参数。
                 ad.show(this@MainActivity, viewGroup)
             }
 
-            override fun onAdFailedToLoad(error: String) {
+            override fun onAdFailedToLoad(error: String, errorCode: String?) {
+                AdsLogger.e("Main", "广告加载失败: $error (code=$errorCode)")
             }
 
             override fun onAdClosed() {
@@ -92,19 +95,21 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showSplash(viewGroup: ViewGroup) {
-        val placementConfig = AdPlacement(
+        val placementConfig = AdsRequest(
             "1",
-            "admob_unit_id_666",
-            AdType.SPLASH,
-            AdProviderType.ADMOB
+            "ca-app-pub-3940256099942544/9257395921",
+            AdsType.SPLASH,
+            AdsProviderType.ADMOB
         )
 
-        AdManager.loadAd(this, placementConfig, object : AdCallback() {
-            override fun onAdLoaded(ad: AdEntity) {
+        AdsManager.loadAd(this, placementConfig, object : AdCallback() {
+            override fun onAdLoaded(ad: AdsEntity) {
+                // SPLASH 不需要依赖 banner 容器，仅需传入任意有效的 ViewGroup。
                 ad.show(this@MainActivity, viewGroup)
             }
 
-            override fun onAdFailedToLoad(error: String) {
+            override fun onAdFailedToLoad(error: String, errorCode: String?) {
+                AdsLogger.e("Main", "广告加载失败: $error (code=$errorCode)")
             }
 
             override fun onAdClosed() {

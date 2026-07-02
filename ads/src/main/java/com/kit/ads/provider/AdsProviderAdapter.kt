@@ -4,14 +4,14 @@ import android.app.Activity
 import android.app.Application
 import android.content.Context
 import android.view.ViewGroup
-import com.kit.ads.AdPlacement
+import com.kit.ads.AdsRequest
 
 /**
  * 广告提供商适配器接口
  * 该接口用于定义与广告提供商的交互方法，广告SDK适配器需要实现该接口来处理广告加载、展示、调试等功能。
  * 每个广告SDK提供的适配器实现该接口，以统一的方式进行广告的加载和展示。
  */
-interface AdProviderAdapter {
+interface AdsProviderAdapter {
 
     /**
      * 初始化广告提供商
@@ -23,13 +23,13 @@ interface AdProviderAdapter {
      */
     fun initialize(
         context: Application,
-        config: AdProviderConfig,
+        config: AdsProviderConfig,
         listener: (success: Boolean) -> Unit
     )
 
     /**
      * 加载广告
-     * 该方法用于加载广告资源，在广告加载过程中会触发 `ProviderListener` 提供的回调方法。
+     * 该方法用于加载广告资源，在广告加载过程中会触发 `AdsProviderListener` 提供的回调方法。
      *
      * @param context 上下文，建议使用 Activity 以获得更好的兼容性，内部会根据需要处理。
      * @param request 广告位请求对象，包含广告的配置和广告位标识等信息。
@@ -37,13 +37,13 @@ interface AdProviderAdapter {
      */
     fun loadAd(
         context: Context,
-        request: AdPlacement,
-        listener: ProviderListener
+        request: AdsRequest,
+        listener: AdsProviderListener
     )
 
     /**
      * 展示广告
-     * 该方法用于展示已经加载好的广告，广告展示时会触发 `ProviderListener` 提供的回调方法。
+     * 该方法用于展示已经加载好的广告，广告展示时会触发 `AdsProviderListener` 提供的回调方法。
      *
      * @param activity 当前的 Activity，通常用于广告SDK与 UI 交互时的上下文。
      * @param container 广告展示的容器视图，广告会被展示在这个容器中。
@@ -54,9 +54,9 @@ interface AdProviderAdapter {
     fun showAd(
         activity: Activity,
         container: ViewGroup,
-        request: AdPlacement,
+        request: AdsRequest,
         ad: Any,
-        listener: ProviderListener
+        listener: AdsProviderListener
     )
 
     /**
@@ -66,4 +66,19 @@ interface AdProviderAdapter {
      * @param activity 当前的 Activity，调试模式通常与 UI 相关，用于展示调试信息。
      */
     fun openDebug(activity: Activity)
+
+    /**
+     * 销毁广告对象，释放资源
+     * 对于 Banner 广告（AdView/MaxAdView），需要调用此方法释放 WebView 持有的资源。
+     * 对于全屏广告（Rewarded/Splash），AdsManager 不追踪其生命周期，由宿主自行管理。
+     *
+     * @param ad 要销毁的广告对象
+     */
+    fun destroyAd(ad: Any) = Unit
+
+    /**
+     * 释放适配器持有的全部资源
+     * 在 AdsManager.destroy() 时调用，用于清理 pendingActions 等 SDK 级别状态。
+     */
+    fun destroy() = Unit
 }

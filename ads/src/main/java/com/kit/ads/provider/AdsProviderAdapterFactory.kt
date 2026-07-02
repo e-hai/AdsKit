@@ -7,13 +7,13 @@ import com.kit.ads.provider.applovin.ApplovinProviderAdapter
 /**
  * 广告提供商的工厂类
  * **/
-internal object AdProviderAdapterFactory {
+internal object AdsProviderAdapterFactory {
     fun create(
-        providerType: AdProviderType
-    ): AdProviderAdapter {
+        providerType: AdsProviderType
+    ): AdsProviderAdapter {
         return when (providerType) {
-            AdProviderType.ADMOB -> AdmobProviderAdapter()
-            AdProviderType.APPLOVIN -> ApplovinProviderAdapter()
+            AdsProviderType.ADMOB -> AdmobProviderAdapter()
+            AdsProviderType.APPLOVIN -> ApplovinProviderAdapter()
         }
     }
 }
