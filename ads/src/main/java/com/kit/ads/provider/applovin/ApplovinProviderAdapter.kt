@@ -26,8 +26,9 @@ import com.applovin.sdk.AppLovinSdk
 import com.applovin.sdk.AppLovinSdkInitializationConfiguration
 import com.applovin.sdk.AppLovinSdkUtils
 import com.google.android.gms.ads.identifier.AdvertisingIdClient
-import com.kit.ads.AdsManager.TAG
 import java.util.Collections
+
+private const val TAG = "AdsKit-AppLovin"
 
 internal class ApplovinProviderAdapter : AdsProviderAdapter {
 

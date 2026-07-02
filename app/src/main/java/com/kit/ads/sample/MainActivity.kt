@@ -50,14 +50,14 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showBanner(viewGroup: ViewGroup) {
-        val placementConfig = AdsRequest(
+        val requestConfig = AdsRequest(
             "1",
             "ca-app-pub-3940256099942544/9214589741",
             AdsType.BANNER,
             AdsProviderType.ADMOB
         )
 
-        AdsManager.loadAd(this, placementConfig, object : AdCallback() {
+        AdsManager.loadAd(this, requestConfig, object : AdCallback() {
             override fun onAdLoaded(ad: AdsEntity) {
                 ad.show(this@MainActivity, viewGroup)
             }
@@ -72,14 +72,14 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showReward(viewGroup: ViewGroup) {
-        val placementConfig = AdsRequest(
+        val requestConfig = AdsRequest(
             "1",
             "ca-app-pub-3940256099942544/5224354917",
             AdsType.REWARDED,
             AdsProviderType.ADMOB
         )
 
-        AdsManager.loadAd(this, placementConfig, object : AdCallback() {
+        AdsManager.loadAd(this, requestConfig, object : AdCallback() {
             override fun onAdLoaded(ad: AdsEntity) {
                 // REWARDED 不需要使用 banner 容器，仅需一个有效的 ViewGroup 占位参数。
                 ad.show(this@MainActivity, viewGroup)
@@ -95,14 +95,14 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showSplash(viewGroup: ViewGroup) {
-        val placementConfig = AdsRequest(
+        val requestConfig = AdsRequest(
             "1",
             "ca-app-pub-3940256099942544/9257395921",
             AdsType.SPLASH,
             AdsProviderType.ADMOB
         )
 
-        AdsManager.loadAd(this, placementConfig, object : AdCallback() {
+        AdsManager.loadAd(this, requestConfig, object : AdCallback() {
             override fun onAdLoaded(ad: AdsEntity) {
                 // SPLASH 不需要依赖 banner 容器，仅需传入任意有效的 ViewGroup。
                 ad.show(this@MainActivity, viewGroup)

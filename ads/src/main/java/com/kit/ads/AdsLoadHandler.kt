@@ -3,18 +3,19 @@ package com.kit.ads
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
-import com.kit.ads.AdsManager.TAG
 import com.kit.ads.provider.AdsProviderAdapter
 import com.kit.ads.provider.AdsProviderListener
 
+private const val TAG = "AdsKit-AdsLoadHandler"
+
 /**
- * 广告触发点执行器
+ * 广告加载处理器
  *
- * 该类用于处理广告位的加载。通过封装广告请求和适配器，协调广告的加载、展示、点击等过程。
- * 它接收广告位请求并通知外部，负责在指定广告提供商的SDK中加载。
+ * 封装一次广告加载请求的生命周期：将 [AdsProviderAdapter.loadAd] 的底层回调
+ * 映射为公开的 [AdsListener] 回调，并确保所有回调在主线程派发。
  */
 class AdsLoadHandler constructor(
-    private val placement: AdsRequest,  // 广告触发点请求配置
+    private val request: AdsRequest,
     private val providerAdapter: AdsProviderAdapter  // 广告提供商适配器
 
 ) {
@@ -32,73 +33,75 @@ class AdsLoadHandler constructor(
     /**
      * 加载广告
      *
-     * 调用广告提供商适配器加载广告资源，并通过 `providerListener` 监听广告加载的过程。
+     * 调用广告提供商适配器加载广告资源。
      *
      * @param context 上下文
      */
     fun loadAd(context: Context, listener: AdsListener) {
-        // 提供商回调监听器
-        // 该监听器负责接收广告提供商SDK的各类事件回调，如广告加载、展示、点击、关闭等。
+        val triggerId = request.triggerId
+        val adUnitId = request.adUnitId
+        val adType = request.adType
+        val providerType = request.providerType
         val adsProviderListener = object : AdsProviderListener {
 
             override fun onAdStartedToLoad() {
                 dispatchToMain {
-                    AdsLogger.d(TAG, "广告开始加载 (trigger=${placement.triggerId})")
+                    AdsLogger.d(TAG, "onAdStartedToLoad id=$triggerId unit=$adUnitId type=$adType provider=$providerType")
                     listener.onAdStartedToLoad()
                 }
             }
 
             override fun onAdLoaded(ad: Any) {
                 dispatchToMain {
-                    AdsLogger.d(TAG, "广告加载成功 (trigger=${placement.triggerId})")
-                    val adEntity = AdsEntity(providerAdapter, placement, this, ad)
-                    listener.onAdLoaded(adEntity)  // 通知外部广告加载成功
+                    AdsLogger.d(TAG, "onAdLoaded id=$triggerId unit=$adUnitId type=$adType provider=$providerType")
+                    val adEntity = AdsEntity(providerAdapter, request, this, ad)
+                    listener.onAdLoaded(adEntity)
                 }
             }
 
             override fun onAdFailedToLoad(error: String, errorCode: String?) {
                 dispatchToMain {
-                    AdsLogger.d(TAG, "广告加载失败 (trigger=${placement.triggerId})")
-                    listener.onAdFailedToLoad(error, errorCode)  // 通知外部广告加载失败
+                    AdsLogger.d(TAG, "onAdFailedToLoad id=$triggerId unit=$adUnitId type=$adType provider=$providerType errorCode=$errorCode")
+                    listener.onAdFailedToLoad(error, errorCode)
                 }
             }
 
             override fun onAdShown() {
                 dispatchToMain {
-                    AdsLogger.d(TAG, "广告被展示 (trigger=${placement.triggerId})")
-                    listener.onAdShown()  // 通知外部广告已展示
+                    AdsLogger.d(TAG, "onAdShown id=$triggerId unit=$adUnitId type=$adType provider=$providerType")
+                    listener.onAdShown()
                 }
             }
 
             override fun onAdClicked() {
                 dispatchToMain {
-                    AdsLogger.d(TAG, "广告被点击 (trigger=${placement.triggerId})")
-                    listener.onAdClicked()  // 通知外部广告被点击
+                    AdsLogger.d(TAG, "onAdClicked id=$triggerId unit=$adUnitId type=$adType provider=$providerType")
+                    listener.onAdClicked()
                 }
             }
 
             override fun onAdPaidEvent() {
                 dispatchToMain {
-                    AdsLogger.d(TAG, "广告预计获得的收益 (trigger=${placement.triggerId})")
-                    listener.onAdPaidEvent()  // 通知外部广告收益事件
+                    AdsLogger.d(TAG, "onAdPaidEvent id=$triggerId unit=$adUnitId type=$adType provider=$providerType")
+                    listener.onAdPaidEvent()
                 }
             }
 
             override fun onAdClosed() {
                 dispatchToMain {
-                    AdsLogger.d(TAG, "广告被关闭 (trigger=${placement.triggerId})")
-                    listener.onAdClosed()  // 通知外部广告已关闭
+                    AdsLogger.d(TAG, "onAdClosed id=$triggerId unit=$adUnitId type=$adType provider=$providerType")
+                    listener.onAdClosed()
                 }
             }
 
             override fun onAdUserEarnedReward() {
                 dispatchToMain {
-                    AdsLogger.d(TAG, "用户获得奖励 (trigger=${placement.triggerId})")
-                    listener.onAdUserEarnedReward()  // 通知外部用户已获得奖励
+                    AdsLogger.d(TAG, "onAdUserEarnedReward id=$triggerId unit=$adUnitId type=$adType provider=$providerType")
+                    listener.onAdUserEarnedReward()
                 }
             }
         }
-        providerAdapter.loadAd(context, placement, adsProviderListener)  // 使用适配器加载广告
+        providerAdapter.loadAd(context, request, adsProviderListener)
     }
 
 }

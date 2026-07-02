@@ -5,7 +5,6 @@ import android.app.Application
 import android.content.Context
 import com.kit.ads.AdsLogger
 import android.view.ViewGroup
-import com.kit.ads.AdsManager.TAG
 import com.kit.ads.AdsRequest
 import com.kit.ads.provider.AdsProviderAdapter
 import com.kit.ads.provider.AdsProviderConfig
@@ -26,6 +25,8 @@ import com.google.android.gms.ads.appopen.AppOpenAd
 import com.google.android.gms.ads.rewarded.RewardedAd
 import com.google.android.gms.ads.rewarded.RewardedAdLoadCallback
 
+
+private const val TAG = "AdsKit-Admob"
 
 internal class AdmobProviderAdapter : AdsProviderAdapter {
 

@@ -1,6 +1,7 @@
 package com.kit.ads
 
 import android.app.Activity
+import java.util.concurrent.ConcurrentHashMap
 import android.app.Application
 import android.content.Context
 import android.os.Handler
@@ -14,7 +15,10 @@ import com.kit.ads.provider.AdsProviderType
 
 object AdsManager {
     // 标签，用于日志输出
-    const val TAG = "AdsManager"
+    const val TAG = "AdsKit"
+
+    // 预加载广告缓存，按 triggerId 索引，消费后立即移除
+    private val preloadedAds = ConcurrentHashMap<String, AdsEntity>()
 
     private enum class InitState {
         IDLE,          // 未初始化
@@ -136,6 +140,7 @@ object AdsManager {
             initializedProviderType = null
         }
         toDestroy?.destroy()
+        preloadedAds.clear()
     }
 
     /**
@@ -155,24 +160,58 @@ object AdsManager {
     /**
      * 加载广告数据
      * @param context 上下文
-     * @param placement 广告触发点请求
+     * @param request 广告触发点请求
      * @param adListener 广告回调监听器
      */
-    fun loadAd(context: Context, placement: AdsRequest, adListener: AdsListener) {
-        executeAdsRequest(context, placement, adListener)
+    fun preloadAd(context: Context, request: AdsRequest) {
+        AdsLogger.d(
+            TAG,
+            "preloadAd triggerId=${request.triggerId} type=${request.adType} provider=${request.providerType}"
+        )
+        val internalListener = object : AdCallback() {
+            override fun onAdLoaded(ad: AdsEntity) {
+                preloadedAds[request.triggerId] = ad
+                AdsLogger.d(TAG, "preloadAd cached triggerId=${request.triggerId}")
+            }
+
+            override fun onAdFailedToLoad(error: String, errorCode: String?) {
+                AdsLogger.d(
+                    TAG,
+                    "preloadAd failed triggerId=${request.triggerId} errorCode=$errorCode"
+                )
+            }
+        }
+        executeAdsRequest(context, request, internalListener)
+    }
+
+    fun loadAd(context: Context, request: AdsRequest, adListener: AdsListener) {
+        executeAdsRequest(context, request, adListener)
     }
 
     /**
      * 构建并执行广告加载
      * @param context 上下文
-     * @param placement 广告触发点请求
+     * @param request 广告触发点请求
      * @param adListener 广告回调监听器
      */
     private fun executeAdsRequest(
         context: Context,
-        placement: AdsRequest,
+        request: AdsRequest,
         adListener: AdsListener
     ) {
+        // 检查预加载缓存
+        val cached = preloadedAds.remove(request.triggerId)
+        if (cached != null) {
+            AdsLogger.d(
+                TAG,
+                "loadAd from cache triggerId=${request.triggerId} type=${request.adType} provider=${request.providerType}"
+            )
+            dispatchToMain {
+                adListener.onAdLoaded(cached)
+            }
+            return
+        }
+
         val adapter: AdsProviderAdapter?
         val currentProviderType: AdsProviderType?
         val state: InitState
@@ -184,9 +223,9 @@ object AdsManager {
 
         AdsLogger.d(
             TAG,
-            "请求广告: triggerId=${placement.triggerId}, type=${placement.adType}, provider=${placement.providerType}"
+            "请求广告: triggerId=${request.triggerId}, type=${request.adType}, provider=${request.providerType}"
         )
-        AdsLogger.d(TAG, "状态校验: state=$state, adapter=${adapter != null}")
+        AdsLogger.d(TAG, "loadAd stateCheck state=$state adapter=${adapter != null}")
 
         if (state != InitState.READY || adapter == null) {
             // 如果没有初始化适配器，调用失败回调并通知全局观察者
@@ -201,19 +240,20 @@ object AdsManager {
             return
         }
 
-        if (currentProviderType != placement.providerType) {
+        if (currentProviderType != request.providerType) {
             val errorMsg = "Provider mismatch. Manager initialized with $currentProviderType, " +
-                    "placement requests ${placement.providerType}."
+                    "request requests ${request.providerType}."
             dispatchToMain {
                 adListener.onAdFailedToLoad(errorMsg, "PROVIDER_MISMATCH")
             }
         } else {
             // 使用当前已初始化的适配器执行广告加载
-            AdsLogger.d(TAG, "开始加载: 交由 $currentProviderType 适配器处理")
-            AdsLoadHandler(placement, adapter)
+            AdsLogger.d(
+                TAG,
+                "loadAd network triggerId=${request.triggerId} type=${request.adType} provider=${request.providerType}"
+            )
+            AdsLoadHandler(request, adapter)
                 .loadAd(context, adListener)
         }
     }
 }
-
-

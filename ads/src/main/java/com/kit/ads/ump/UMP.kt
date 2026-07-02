@@ -14,7 +14,7 @@ import com.google.android.ump.UserMessagingPlatform
  * 根据用户的同意情况，决定是否展示广告。
  */
 object UMP {
-    private const val TAG = "UMP"
+    private const val TAG = "AdsKit-UMP"
 
     /**
      * 启动用户隐私同意弹窗。

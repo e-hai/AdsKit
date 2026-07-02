@@ -1,142 +1,220 @@
 # AdsManager SDK
 
-该项目提供了一个广告管理模块，旨在统一管理不同广告SDK的加载、展示、事件回调等操作。通过该模块，开发者可以集成和管理广告提供商（如 AdMob、AppLovin 等），并统一处理广告生命周期中的各类事件。
+该项目提供了一个广告管理模块，旨在统一管理不同广告 SDK 的加载、展示、事件回调等操作。通过该模块，开发者可以集成和管理广告提供商（如 AdMob、AppLovin 等），并统一处理广告生命周期中的各类事件。
 
 ## 目录结构
 
-- **`AdsManager`**：核心广告管理类，负责初始化广告提供商、加载广告、展示广告、注册/取消事件观察者等功能。
-- **`AdsEntity`**：封装了广告对象和广告触发点执行器，提供广告展示的接口。
+- **`AdsManager`**：核心广告管理单例类，负责初始化广告提供商、加载广告、展示广告、资源销毁等功能，内部维护初始化状态机。
+- **`AdsEntity`**：封装已加载的广告对象，提供 `show()` 和 `destroy()` 接口。
 - **`AdsListener`**：广告回调接口，用于接收广告的加载、展示、点击等事件。
-- **`AdCallback`**：广告回调的抽象实现类，开发者可继承该类来实现具体的广告回调。
-- **`AdPlacementExecutor`**：广告触发点执行器，负责广告的加载与展示过程，协调广告SDK和回调。
-- **`AdProviderAdapter`**：广告提供商适配器接口，所有广告SDK的适配器都需要实现该接口。
-- **`ProviderListener`**：广告SDK的回调接口，用于接收广告SDK的事件。
-- **`AdPlacement`**：广告触发点配置，定义广告的类型、位置和相关参数。
-- **`AdEventObserver`**：广告事件观察者接口，用于接收广告生命周期中的各种事件通知。
+- **`AdCallback`**：`AdsListener` 的抽象实现类，提供空默认实现，开发者可继承并只覆写需要的方法。
+- **`AdsRequest`**：广告请求数据类，定义广告触发点标识、广告单元 ID、广告类型和提供商类型。
+- **`AdsLoadHandler`**：广告加载协调器，负责将提供商的回调映射到公开的 `AdsListener`，并确保主线程派发。
+- **`AdsType`**：广告类型枚举（`BANNER` / `SPLASH` / `REWARDED`）。
+- **`AdsLogger`**：日志工具类，封装 `android.util.Log`，支持运行时开关。
+- **`AdsProviderAdapter`**：广告提供商适配器接口，所有广告 SDK 的适配器都需要实现该接口。
+- **`AdsProviderAdapterFactory`**：适配器工厂（`internal`），根据 `AdsProviderType` 创建对应的适配器实例。
+- **`AdsProviderConfig`**：广告提供商配置数据类，包含 `providerType` 和 `apiKey`。
+- **`AdsProviderType`**：广告提供商类型枚举（`ADMOB` / `APPLOVIN`）。
+- **`AdsProviderListener`**：内部回调接口，包含加载、展示、关闭等事件，额外提供 `onAdFailedToShow` 用于展示阶段失败。
+- **`UMP`**：Google UMP（User Messaging Platform）隐私同意流程封装。
 
 ## 核心功能
 
 ### 1. 广告管理
 
-`AdsManager` 是广告管理模块的核心类，提供了广告SDK的初始化、广告的加载与展示、事件的观察等功能。主要方法如下：
+`AdsManager` 是广告管理模块的核心单例类，内部维护初始化状态机（IDLE → INITIALIZING → READY/FAILED），提供了广告 SDK 的初始化、广告的预加载与展示、资源销毁等功能。主要方法如下：
 
-- **`initialize(context: Application, config: AdProviderConfig)`**：初始化广告提供商适配器。通过外部传入广告提供商的配置，初始化指定的广告SDK。**注意：目前 AdsManager 设计为单适配器模式，即每次运行仅初始化一个广告提供商。**
-- **`openDebug(activity: Activity)`**：开启当前已初始化广告提供商的调试模式，用于展示广告SDK的调试信息。
-- **`loadAd(context: Context, placement: AdPlacement, adListener: AdsListener)`**：加载广告，并在加载成功后触发回调。
-- **`registerObserver(observer: AdEventObserver)`**：注册广告事件观察者，监听广告相关事件（如加载成功、展示、点击等）。
-- **`unregisterObserver(observer: AdEventObserver)`**：取消注册广告事件观察者。
+- **`initialize(context: Application, config: AdsProviderConfig, onResult: ((Boolean) -> Unit)? = null)`**：初始化广告提供商适配器，通过外部传入配置初始化指定的广告 SDK。**单适配器模式**：每次运行仅初始化一个广告提供商。切换提供商时自动销毁旧适配器。
+- **`destroy()`**：销毁当前适配器，释放所有资源（含 SDK 级别状态），回到 IDLE 状态，可重新 `initialize`。
+- **`openDebug(activity: Activity)`**：开启当前已初始化广告提供商的调试模式，用于展示广告 SDK 的调试信息。
+- **`loadAd(context: Context, request: AdsRequest, adListener: AdsListener)`**：加载广告。调用前会校验初始化状态和提供商类型是否匹配，不符合则快速失败并附上标准化错误码。
+- **`preloadAd(context: Context, request: AdsRequest)`**：预加载广告，按 `triggerId` 缓存在 `AdsManager` 内部。后续调用 `loadAd()` 使用相同 `triggerId` 时，优先从缓存返回，无需网络请求。
 
 ### 2. 广告回调
 
-`AdsListener` 和 `AdCallback` 提供了广告回调接口，用于接收广告的各个生命周期事件。
+`AdsListener` 和 `AdCallback` 提供了广告回调接口，所有回调均在主线程派发。
 
-- **`onAdLoaded(ad: AdsEntity)`**：广告加载成功时触发。
-- **`onAdFailedToLoad(error: String)`**：广告加载失败时触发。
-- **`onAdShown()`**：广告展示时触发。
-- **`onAdClicked()`**：广告被点击时触发。
-- **`onAdPaidEvent()`**：广告付费事件触发时调用。
-- **`onAdUserEarnedReward()`**：用户通过观看广告获得奖励时触发。
-- **`onAdClosed()`**：广告被关闭时触发。
+```
+onAdStartedToLoad()                      // 广告开始加载（默认空实现）
+onAdLoaded(ad: AdsEntity)               // 广告加载成功
+onAdFailedToLoad(error: String)         // 广告加载失败（旧版单参数，保持向后兼容）
+onAdFailedToLoad(error: String, errorCode: String?)  // 广告加载失败（含错误码）
+onAdShown()                             // 广告展示
+onAdClicked()                           // 广告被点击
+onAdPaidEvent()                         // 广告付费事件
+onAdUserEarnedReward()                  // 用户获得奖励（激励广告）
+onAdClosed()                            // 广告关闭
+```
 
-`AdCallback` 是 `AdsListener` 接口的抽象实现类，开发者可以继承该类并覆盖相关方法，方便定制广告回调。
+### 3. 广告请求 (AdsRequest)
 
-### 3. 广告触发点 (AdPlacement)
+广告的加载和展示基于 **广告请求（AdsRequest）** 数据类：
 
-广告的加载和展示是基于 **广告触发点（AdPlacement）** 进行的。每个广告触发点对应一个特定的广告位置或场景。
+```kotlin
+data class AdsRequest(
+    val triggerId: String,      // 广告触发点标识
+    val adUnitId: String,       // 广告单元 ID
+    val adType: AdsType,        // 广告类型（BANNER / SPLASH / REWARDED）
+    val providerType: AdsProviderType,  // 提供商类型（ADMOB / APPLOVIN）
+)
+```
 
-- **`AdPlacement`**：包含广告的配置（如广告ID、广告类型等），通过广告位标识唯一标识广告位置。
-- **`AdPlacementExecutor`**：负责加载和展示广告，协调广告SDK和回调。
+`triggerId` 由开发者自定义，用于区分不同的广告展示场景（如首页横幅、插屏、开屏等）。
 
-### 4. 广告事件观察
+### 4. 广告提供商适配
 
-`AdEventObserverManager` 用于管理广告事件观察者，开发者可以通过观察者模式接收到广告生命周期中的各类事件通知。
+`AdsProviderAdapter` 是广告提供商适配器接口，负责与不同广告 SDK 的交互：
 
-- **`registerObserver(observer: AdEventObserver)`**：注册广告事件观察者。
-- **`unregisterObserver(observer: AdEventObserver)`**：取消注册广告事件观察者。
-- **`notifyObservers(eventType: AdEventType)`**：通知所有已注册的观察者广告事件。
+```kotlin
+interface AdsProviderAdapter {
+    fun initialize(context: Application, config: AdsProviderConfig, listener: (Boolean) -> Unit)
+    fun loadAd(context: Context, request: AdsRequest, listener: AdsProviderListener)
+    fun showAd(activity: Activity, container: ViewGroup, request: AdsRequest, ad: Any, listener: AdsProviderListener)
+    fun openDebug(activity: Activity)
+    fun destroyAd(ad: Any)   // 默认空实现
+    fun destroy()            // 默认空实现
+}
+```
 
-### 5. 广告提供商适配
+### 5. 错误码说明
 
-`AdProviderAdapter` 是广告提供商适配器接口，负责与不同广告SDK的交互。
+| 错误码 | 说明 |
+|--------|------|
+| `STATE_INITIALIZING` | `loadAd()` 在初始化过程中被调用 |
+| `STATE_IDLE` | `loadAd()` 在未调用 `initialize()` 时被调用 |
+| `STATE_FAILED` | `loadAd()` 在初始化失败后被调用 |
+| `PROVIDER_MISMATCH` | `AdsRequest.providerType` 与已初始化的提供商类型不一致 |
+| `DISPLAY_*` | AppLovin 展示阶段错误，如 `DISPLAY_AD_ALREADY_SHOWN` |
+| SDK 原生码 | AdMob / AppLovin 框架原始错误码透传 |
 
-- **`initialize(context: Application, config: AdProviderConfig, listener: (Boolean) -> Unit)`**：初始化广告SDK，完成后通知初始化是否成功。
-- **`loadAd(context: Context, placement: AdPlacement, listener: ProviderListener)`**：加载广告资源。
-- **`showAd(activity: Activity, container: ViewGroup, placement: AdPlacement, ad: Any, listener: ProviderListener)`**：展示广告。
-- **`openDebug(activity: Activity)`**：开启广告SDK调试模式。
+### 6. 日志规范
 
-### 6. 广告业务逻辑 (Waterfall & Bidding)
+所有 SDK 内部日志统一使用 `AdsKit-{类名}` TAG 前缀，通过 `AdsLogger` 输出：
 
-本 SDK 支持主流广告平台的 **瀑布流 (Waterfall)** 和 **应用内竞价 (In-App Bidding)** 模式：
+| TAG | 来源 |
+|-----|------|
+| `AdsKit` | `AdsManager.kt` |
+| `AdsKit-AdsLoadHandler` | `AdsLoadHandler.kt` |
+| `AdsKit-AdsEntity` | `AdsEntity.kt` |
+| `AdsKit-Admob` | `AdmobProviderAdapter.kt` |
+| `AdsKit-AppLovin` | `ApplovinProviderAdapter.kt` |
+| `AdsKit-UMP` | `UMP.kt` |
 
-- **瀑布流 (Waterfall)**：传统的层级变现模式。通过在广告平台后台配置不同 eCPM 的广告单元，SDK 会按照价格从高到低的顺序依次请求广告源，直到获得填充。
-- **应用内竞价 (Bidding)**：现代化的实时竞价模式。广告平台会向所有参与竞价的广告源同时发起请求，各源实时出价，最高者获得展示机会。这种模式通常能显著提高填充率和收益（ARPU）。
+Logcat 中：
+- 过滤 `AdsKit` 可看到 **所有** SDK 日志（子串匹配覆盖 `AdsKit-*` 类）。
+- 过滤 `AdsKit-Admob` 只看 AdMob 适配器日志。
 
-SDK 的 `AdsManager` 抽象了这些底层的复杂交互，开发者只需配置好对应的 `adUnitId`，具体的 Bidding 或 Waterfall 策略直接在广告平台（如 AdMob 或 AppLovin MAX）的后台管理即可。
+日志采用 `key=value` 紧凑格式，例如：
+```
+AdsKit-AdsLoadHandler: onAdLoaded id=home_banner unit=ca-app-pub-xxx/9214589741 type=BANNER provider=ADMOB
+```
 
 ## 使用示例
 
-### 1. 初始化广告SDK
+### 1. 初始化广告 SDK
 
-在应用的 `Application` 类中，调用 `AdsManager` 的 `initialize` 方法来初始化指定的广告SDK。
+在应用的 `Application` 类中，调用 `AdsManager.initialize()` 来初始化指定的广告 SDK。
 
 ```kotlin
-class MyApplication : Application() {
-
+class App : Application() {
     override fun onCreate() {
         super.onCreate()
-
-        // 配置广告提供商信息 (例如 AdMob)
-        val config = AdProviderConfig(AdProviderType.ADMOB, "your_admob_app_id")
-
-        // 初始化广告管理器 (单提供商模式)
+        val config = AdsProviderConfig(
+            AdsProviderType.ADMOB,
+            "ca-app-pub-3940256099942544~3347511713"  // Google 测试 App ID
+        )
         AdsManager.initialize(this, config)
     }
 }
 ```
 
-### 2. 加载广告
-
-在需要加载广告时，调用 `AdsManager.loadAd()` 方法，传入广告触发点 (`AdPlacement`) 和回调监听器 (`AdsListener`)。
+### 2. 加载和展示广告
 
 ```kotlin
-val placement = AdPlacement(
+val request = AdsRequest(
     triggerId = "home_banner",
-    adUnitId = "your_ad_unit_id",
+    adUnitId = "ca-app-pub-3940256099942544/9214589741",  // Google 测试广告单元
     adType = AdsType.BANNER,
-    providerType = AdProviderType.ADMOB
+    providerType = AdsProviderType.ADMOB
 )
 
-AdsManager.loadAd(this, placement, object : AdCallback() {
+AdsManager.loadAd(this, request, object : AdCallback() {
     override fun onAdLoaded(ad: AdsEntity) {
-        ad.show(this@MainActivity, container)  // 展示广告
+        ad.show(this@MainActivity, bannerContainer)
     }
 
-    override fun onAdFailedToLoad(error: String) {
-        Log.e("AdsManager", "广告加载失败: $error")
+    override fun onAdFailedToLoad(error: String, errorCode: String?) {
+        Log.e("Ads", "加载失败: $error (code=$errorCode)")
     }
 })
 ```
 
-### 3. 全局广告事件观察
-
-通过 `AdsManager.registerObserver()` 注册观察者，全局监听广告生命周期事件。
+### 3. 资源销毁
 
 ```kotlin
-val observer = object : AdEventObserver {
-    override fun onAdEvent(eventType: AdEventType) {
-        when (eventType) {
-            is LoadAdStart -> Log.d("AdsManager", "广告开始加载: ${eventType.placement.triggerId}")
-            is LoadAdSuccess -> Log.d("AdsManager", "广告加载成功")
-            is LoadAdFailure -> Log.d("AdsManager", "广告加载失败: ${eventType.errorMessage}")
-            // errorCode / providerType 可选：eventType.errorCode / eventType.providerType
-            // 其他事件...
-        }
-    }
+// 销毁单个广告实体（例如在 onDestroy 中清理 Banner）
+override fun onDestroy() {
+    super.onDestroy()
+    adEntity?.destroy()
 }
 
-// 注册观察者
-AdsManager.registerObserver(observer)
+// 销毁整个 AdsManager（清空适配器）
+AdsManager.destroy()
 ```
+
+### 4. 广告生命周期状态机
+
+```
+                    +-----------+
+                    |   IDLE    |
+                    +-----+-----+
+                          |
+                  initialize()
+                          |
+                    +-----v-----+
+                    | INITIALIZING|
+                    +-----+-----+
+                     /           \
+              成功 /               \ 失败
+                 v                 v
+          +-----------+     +-----------+
+          |   READY   |     |  FAILED   |
+          +-----+-----+     +-----------+
+                |
+          loadAd() / show()
+                |
+          destroy() → 回到 IDLE
+```
+
+## 预加载说明
+
+`AdsManager.preloadAd()` 用于提前加载并缓存广告，适合在 App 启动、切换页面等时机提前发起加载请求。
+
+```kotlin
+val request = AdsRequest(
+    triggerId = "home_banner",
+    adUnitId = "ca-app-pub-3940256099942544/9214589741",
+    adType = AdsType.BANNER,
+    providerType = AdsProviderType.ADMOB
+)
+
+// 预加载
+AdsManager.preloadAd(this, request)
+
+// 后续加载 —— 有缓存直接返回，无缓存走网络
+AdsManager.loadAd(this, request, object : AdCallback() {
+    override fun onAdLoaded(ad: AdsEntity) {
+        ad.show(this@MainActivity, container)
+    }
+})
+```
+
+行为规则：
+- 预加载走与 `loadAd()` 相同的状态和类型校验，不合法则静默失败。
+- 缓存以 `request.triggerId` 为键，消费后立即移除（单次有效）。
+- `AdsManager.destroy()` 会清空所有预加载缓存。
+- `loadAd()` 时若缓存不存在，自动回退到实时网络加载。
 
 ## 本地构建/运行说明（权限问题）
 
@@ -152,7 +230,7 @@ Caused by: java.net.SocketException: Operation not permitted
   at org.gradle.cache.internal.locklistener.DefaultFileLockCommunicator.<init>(...)
 ```
 
-该错误来自 Gradle 启动时 DefaultFileLockCommunicator 内部 new DatagramSocket(0, …) 调用。Gradle 9.x 需要用 UDP socket 做跨进程文件锁协商，这是框架启动阶段行为，**非项目代码问题**。
+该错误来自 Gradle 启动时 DefaultFileLockCommunicator 内部 new DatagramSocket(0, ...) 调用。Gradle 9.x 需要用 UDP socket 做跨进程文件锁协商，这是框架启动阶段行为，**非项目代码问题**。
 
 ### 诊断
 

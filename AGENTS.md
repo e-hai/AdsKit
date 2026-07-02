@@ -6,7 +6,7 @@ This file is for AI agents (Codex, Copilot, etc.) to quickly understand the proj
 
 An Android ad mediation SDK module (`:ads`) plus a sample app (`:app`). The SDK wraps AdMob and AppLovin SDKs under a single `AdsManager` facade so that the host app only imports one dependency and uses one API.
 
-**Key design decision**: single-adapter mode – `AdsManager` initializes exactly one `AdProviderAdapter` at a time. Switching providers requires a new `initialize()` call.
+**Key design decision**: single-adapter mode – `AdsManager` initializes exactly one `AdsProviderAdapter` at a time. Switching providers requires reinitializing via `AdsManager.initialize()`, which destroys the old adapter first.
 
 ## Project Layout
 
@@ -15,22 +15,19 @@ AdsKit/
 ├── ads/                     # SDK library module (namespace: com.kit.ads)
 │   ├── build.gradle
 │   └── src/main/java/com/kit/ads/
-│       ├── AdsManager.kt              # [Entry Point] Singleton facade
-│       ├── AdsRequest.kt            # Ad placement data class
-│       ├── AdsLoadHandler.kt    # Coordinates load+callback flow
-│       ├── AdsEntity.kt               # Loaded ad wrapper with show()
+│       ├── AdsManager.kt              # [Entry Point] Singleton facade with init state machine
+│       ├── AdsRequest.kt              # Ad request data class (triggerId, adUnitId, adType, providerType)
+│       ├── AdsLoadHandler.kt          # Coordinates load+callback flow, dispatches to main thread
+│       ├── AdsEntity.kt               # Loaded ad wrapper with show() and destroy()
 │       ├── AdsListener.kt             # Callback interface + AdCallback base class
 │       ├── AdsType.kt                 # BANNER / SPLASH / REWARDED enum
-│       ├── event/
-│       │   ├── AdEventObserver.kt    # Observer interface
-│       │   ├── AdEventObserverManager.kt  # Observer registry + notify
-│       │   └── AdEventType.kt        # Sealed event hierarchy
+│       ├── AdsLogger.kt               # Log utility wrapping android.util.Log, runtime toggle
 │       ├── provider/
 │       │   ├── AdsProviderAdapter.kt  # [Interface] All adapters implement this
 │       │   ├── AdsProviderAdapterFactory.kt  # Factory (internal)
-│       │   ├── AdsProviderConfig.kt   # Config data class
+│       │   ├── AdsProviderConfig.kt   # Config data class (providerType, apiKey)
 │       │   ├── AdsProviderType.kt     # ADMOB / APPLOVIN enum
-│       │   ├── AdsProviderListener.kt   # Internal callback interface
+│       │   ├── AdsProviderListener.kt # Internal callback interface (includes onAdFailedToShow)
 │       │   ├── admob/AdmobProviderAdapter.kt  # AdMob implementation
 │       │   └── applovin/ApplovinProviderAdapter.kt  # AppLovin implementation
 │       └── ump/UMP.kt               # Google UMP consent flow
@@ -42,15 +39,18 @@ AdsKit/
 ├── build.gradle              # Root build file
 ├── settings.gradle           # Includes :app and :ads
 ├── README.md
-└── AGENTS.md                 # This file
+├── AGENTS.md                 # This file
+└── gradlew                   # Automatically sets GRADLE_USER_HOME for sandbox safety
 ```
 
 ## Core Data Flow
 
-- Initialization: `AdsManager.initialize(context, AdProviderConfig)` creates provider adapter by type.
-- Load: `AdsManager.loadAd(context, placement, listener)` creates `AdsLoadHandler` and loads via provider.
-- Show: `AdsEntity.show(activity, container)` delegates to `AdProviderAdapter.showAd()`.
-- Events: each provider callback is mapped in `AdsLoadHandler` into both public `AdsListener` and `AdEventObserverManager` events.
+- **Initialization**: `AdsManager.initialize(context, AdsProviderConfig, onResult?)` → creates provider adapter by type via `AdsProviderAdapterFactory`, drives state machine (IDLE → INITIALIZING → READY/FAILED). Stale-callback guard via initToken.
+- **Load**: `AdsManager.loadAd(context, AdsRequest, AdsListener)` → checks init state & provider type match, creates `AdsLoadHandler`, loads via provider adapter. Public callbacks dispatched to main thread.
+- **Preload**: `AdsManager.preloadAd(context, AdsRequest)` → loads and caches the ad by `AdsRequest.triggerId`. Subsequent `loadAd()` with the same `triggerId` returns the cached ad immediately without network request.
+- **Show**: `AdsEntity.show(activity, container)` → delegates to `AdsProviderAdapter.showAd()`. Full-screen types (REWARDED/SPLASH) ignore container semantics.
+- **Cleanup**: `AdsEntity.destroy()` → calls `AdsProviderAdapter.destroyAd(ad)`. `AdsManager.destroy()` → calls `AdsProviderAdapter.destroy()` and resets state to IDLE.
+- **Callbacks**: Provider callbacks mapped in `AdsLoadHandler` into `AdsListener` callbacks. All public callbacks are posted to the main thread.
 
 ## Show API Semantics
 
@@ -58,57 +58,78 @@ AdsKit/
 - `container` is **mandatory to pass**, and is **meaningful only for BANNER** ads.
 - For `AdsType.REWARDED` and `AdsType.SPLASH`, the concrete adapter currently ignores container semantics; passing a valid `ViewGroup` is sufficient to satisfy API shape.
 
-## Current Edits (In-Repo)
+## Init State Machine & Guards
 
-### 已完成
-- Added resource cleanup API:
-  - `AdProviderAdapter.destroyAd(ad: Any)` (default no-op)
-  - `AdProviderAdapter.destroy()` (default no-op)
-- Added `AdsEntity.destroy()` and `AdsManager.destroy()`.
-- Added `AdsManager` initialization state machine (`IDLE/INITIALIZING/READY/FAILED`), reinitialize gating, and stale-callback guard.
-- Added provider-type guard in `AdsManager.loadAd(...)`:
-  - if not initialized, fail fast with clear error
-  - if `placement.providerType` mismatches initialized provider, fail fast with mismatch error
-- Added main-thread dispatch on public callbacks:
-  - `AdsListener` / `AdEventObserver` callbacks from `AdsLoadHandler` are posted to main thread
-  - immediate `AdsManager.loadAd(...)` failure paths are also posted to main thread
-- Improved observer handling:
-  - `AdEventObserverManager` uses thread-safe list, deduplicates register calls, adds `clear()`
-  - `AdsManager.destroy()` clears observer list
-- Extended `LoadAdFailure` event to carry optional `errorMessage`, `errorCode`, `providerType`.
-- Fixed `onAdStartedToLoad()` missing in:
-  - AdMob `loadRewarded()`, `loadSplash()`
-  - AppLovin `loadBanner()`, `loadRewarded()`, `loadSplash()`
-- Fixed `AdsManager.openDebug()` TOCTOU race (now guarded by `stateLock`).
-- Added `AdsManager.setAdapterForTesting()` + `getInitState()` + `getInitializedProviderType()` (`@VisibleForTesting` internal helpers).
-- Added `AdsManagerTest.kt` covering state transitions, provider type tracking, and destroy lifecycle.
-- Updated `jvmTarget` from 1.8 to 17 in both `:ads` and `:app` modules.
-- Replaced sample app fake ad unit IDs (`admob_unit_id_666`) with Google test ad unit IDs.
-- Cleaned up commented-out duplicate Maven repos in `settings.gradle`.
-- Enhanced error information reporting:
-  - `AdsListener.onAdFailedToLoad(error, errorCode?)` — 新增 2 参数重载（含 errorCode），默认委派保持向后兼容
-  - `ProviderListener.onAdFailedToShow(ad, error, errorCode?)` — 新增展示失败回调（默认空实现）
-  - `AdsLoadHandler` — 将 errorCode 透传给 `AdsListener`
-  - `AdsManager` 内部失败路径标准化 errorCode：`STATE_INITIALIZING` / `STATE_IDLE` / `PROVIDER_MISMATCH`
-  - AppLovin 展示失败（onAdDisplayFailed）errorCode 加 `DISPLAY_` 前缀
-  - AdMob 全屏展示失败（onAdFailedToShowFullScreenContent）通过 listener 上报
-  - Sample app 展示加载失败时的 errorCode 日志
+- `AdsManager` maintains an internal state machine: `IDLE → INITIALIZING → READY | FAILED`.
+- `initialize()` calls are gated: concurrent initialize is ignored; repeated initialize to the same provider is skipped; switching providers destroys the old adapter first.
+- `loadAd()` validates: if state is not READY, fails fast with `STATE_INITIALIZING` / `STATE_IDLE` / `STATE_FAILED` error code. If `AdsRequest.providerType` mismatches the initialized provider, fails fast with `PROVIDER_MISMATCH`.
+- `preloadAd()` passes through the same validation as `loadAd()`. A preloaded ad survives until consumed by `loadAd()` or cleared by `destroy()`.
+- All immediate failure paths are dispatched to the main thread.
 
-### Unchanged (per request)
-- Kept `AdsEntity.show(activity, container)` API unchanged to avoid breaking encapsulation.
+## Callback Details
+
+### AdsListener (public, main-thread)
+
+| Method | Description |
+|--------|-------------|
+| `onAdLoaded(ad: AdsEntity)` | Ad loaded successfully |
+| `onAdFailedToLoad(error: String)` | Legacy: error description only |
+| `onAdFailedToLoad(error: String, errorCode: String?)` | Enhanced: includes error code for diagnosis |
+| `onAdStartedToLoad()` | Loading began (default no-op) |
+| `onAdShown()` | Ad displayed |
+| `onAdClicked()` | Ad clicked |
+| `onAdClosed()` | Ad dismissed |
+| `onAdPaidEvent()` | Revenue event reported |
+| `onAdUserEarnedReward()` | User earned reward (REWARDED) |
+
+`AdCallback` is an abstract class with empty default implementations for all `AdsListener` methods — convenient for overriding only the methods you need.
+
+### AdsProviderListener (internal, may be off main thread)
+
+Same shape as `AdsListener` plus `onAdFailedToShow(ad, error, errorCode?)` for show-phase failures (default no-op). Error codes for AppLovin display failures carry a `DISPLAY_` prefix.
+
+## Standardized Error Codes
+
+| Code | Meaning |
+|------|---------|
+| `STATE_INITIALIZING` | `loadAd()` / `preloadAd()` called while `AdsManager` is still initializing |
+| `STATE_IDLE` | called before any `initialize()` call |
+| `STATE_FAILED` | called after initialization failed |
+| `PROVIDER_MISMATCH` | `AdsRequest.providerType` != initialized provider type |
+| `DISPLAY_*` | AppLovin show-phase failures (e.g. `DISPLAY_AD_ALREADY_SHOWN`) |
+| SDK-specific | Raw error codes forwarded from AdMob / AppLovin |
+
+## Logging Convention
+
+All SDK internal logs use the `AdsKit-{ClassName}` tag pattern via `AdsLogger`:
+
+| TAG | Source |
+|-----|--------|
+| `AdsKit` | `AdsManager.kt` |
+| `AdsKit-AdsLoadHandler` | `AdsLoadHandler.kt` |
+| `AdsKit-AdsEntity` | `AdsEntity.kt` |
+| `AdsKit-Admob` | `AdmobProviderAdapter.kt` |
+| `AdsKit-AppLovin` | `ApplovinProviderAdapter.kt` |
+| `AdsKit-UMP` | `UMP.kt` |
+
+In Logcat:
+- Filter `AdsKit` to see **all** SDK logs (substring match covers all `AdsKit-*` tags).
+- Filter `AdsKit-Admob` to isolate only AdMob adapter logs.
+
+Log messages use a compact key=value format: `onAdLoaded id=... unit=... type=... provider=...`.
 
 ## Important Notes for Agents
 
-1. Do not add non-requested API-level behavior changes to `AdsListener`/`AdsEntity.show` semantics.
-2. When changing failure behavior, keep backward compatibility by preserving existing method signatures.
+1. Do not add non-requested API-level behavior changes to `AdsListener` or `AdsEntity.show` semantics.
+2. When changing failure behavior, keep backward compatibility by preserving existing method signatures (e.g. the `errorCode` overload defaults to the legacy single-param version).
 3. Avoid editing generated outputs under `*/build/`.
 4. Existing sample app (`app/`) is a minimal demo; host integration should be validated with real devices for ad behavior.
 
 ## Implementation Caveats
 
 - `AdsManager.initialize(...)` is asynchronous and callback-driven.
-- `providerType` mismatch now causes immediate callback failure before loading.
-- Thread-safety was improved for observer list; this should be preferred if adding event observer logic elsewhere.
+- `providerType` mismatch causes immediate callback failure before loading.
+- All `AdsListener` callbacks from `AdsLoadHandler` are dispatched to the main thread.
 
 ## Environment Constraints
 

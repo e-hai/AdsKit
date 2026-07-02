@@ -12,10 +12,15 @@ import com.kit.ads.provider.AdsProviderListener
  */
 class AdsEntity(
     private val providerAdapter: AdsProviderAdapter,  // 用于处理广告展示的执行器
-    private val placement: AdsRequest,  // 广告触发点请求配置
+    private val request: AdsRequest,  // 广告触发点请求配置
     private val adsProviderListener: AdsProviderListener,  // 广告事件监听器
     private val ad: Any  // 已加载的广告对象，具体类型依赖于广告提供商
 ) {
+
+    private companion object {
+        private const val TAG = "AdsKit-AdsEntity"
+    }
+
 
     /**
      * 展示广告
@@ -31,8 +36,8 @@ class AdsEntity(
         activity: Activity,  // 当前的 Activity，通常用于广告SDK与 UI 交互时的上下文
         container: ViewGroup  // 广告展示的容器，广告会被添加到此容器中
     ) {
-        AdsLogger.d(AdsManager.TAG, "展示广告: triggerId=${placement.triggerId}, type=${placement.adType}, provider=${placement.providerType}")
-        providerAdapter.showAd(activity, container, placement, ad, adsProviderListener)  // 使用适配器展示广告
+        AdsLogger.d(TAG, "showAd triggerId=${request.triggerId} type=${request.adType} provider=${request.providerType}")
+        providerAdapter.showAd(activity, container, request, ad, adsProviderListener)  // 使用适配器展示广告
     }
 
     /**
@@ -42,6 +47,7 @@ class AdsEntity(
      * 最佳实践：在 Activity/Fragment 的 onDestroy 中调用。
      */
     fun destroy() {
+        AdsLogger.d(TAG, "destroyAd triggerId=${request.triggerId}")
         providerAdapter.destroyAd(ad)
     }
 }
