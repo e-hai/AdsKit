@@ -46,8 +46,8 @@ dependencies {
     implementation libs.compose.activity
     debugImplementation libs.compose.ui.tooling.preview
 
-    implementation project(":ads")
+//    implementation project(":ads")
 
     //测试线上aar
-//    implementation 'com.github.e-hai:AdsKit:v1.0.0'
+    implementation 'com.github.e-hai:AdsKit:-51a3c6108f-1'
 }
