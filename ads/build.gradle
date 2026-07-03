@@ -1,6 +1,5 @@
 plugins {
     alias(libs.plugins.android.library)
-    id 'maven-publish'
     alias(libs.plugins.kotlin.android)
 }
 
@@ -87,15 +86,3 @@ dependencies {
     //Applovin end
 }
 
-afterEvaluate {
-    publishing {
-        publications {
-            release(MavenPublication) {
-                from components.release
-                groupId = 'com.github.AdvertisingKit'
-                artifactId = 'AdsKit'
-                version = '1.0.0'
-            }
-        }
-    }
-}

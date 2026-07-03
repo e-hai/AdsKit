@@ -6,12 +6,12 @@ plugins {
 
 android {
     namespace 'com.kit.ads.sample'
-    compileSdk 35
+    compileSdk = 35
 
     defaultConfig {
         applicationId "com.kit.ads.sample"
-        minSdk 23
-        targetSdk 34
+        minSdk = 23
+        targetSdk = 34
         versionCode 1
         versionName "1.0"
 
@@ -47,4 +47,5 @@ dependencies {
     debugImplementation libs.compose.ui.tooling.preview
 
     implementation project(":ads")
+
 }
