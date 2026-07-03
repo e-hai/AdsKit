@@ -10,6 +10,7 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        maven { url 'https://jitpack.io' }
 
         //admob Mediation start
         maven { url 'https://imobile.github.io/adnw-sdk-android' }
@@ -37,5 +38,5 @@ dependencyResolutionManagement {
     }
 }
 rootProject.name = "AdsKit"
-include ':app'
+include ':sample'
 include ':ads'
