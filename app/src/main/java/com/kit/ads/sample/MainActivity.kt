@@ -31,6 +31,12 @@ class MainActivity : AppCompatActivity() {
         findViewById<View>(R.id.ad_debug).setOnClickListener {
             showDebug()
         }
+        findViewById<View>(R.id.preload).setOnClickListener {
+            preloadBanner()
+        }
+        findViewById<View>(R.id.show_cached).setOnClickListener {
+            showCachedBanner(findViewById(R.id.bannerViewGroup))
+        }
         val adWidth = defaultBannerAdWidth()
         AdsLogger.d("Main", "屏幕宽=$adWidth")
         UMP.start(this) {
@@ -40,6 +46,37 @@ class MainActivity : AppCompatActivity() {
 
     private fun showDebug() {
         AdsManager.openDebug(this)
+    }
+
+    private fun preloadBanner() {
+        val request = AdsRequest(
+            "preload_home",
+            "ca-app-pub-3940256099942544/9214589741",
+            AdsType.BANNER,
+            AdsProviderType.ADMOB
+        )
+        AdsLogger.d("Main", "preloadBanner triggerId=${request.triggerId}")
+        AdsManager.preloadAd(this, request)
+    }
+
+    private fun showCachedBanner(viewGroup: ViewGroup) {
+        val request = AdsRequest(
+            "preload_home",
+            "ca-app-pub-3940256099942544/9214589741",
+            AdsType.BANNER,
+            AdsProviderType.ADMOB
+        )
+        AdsLogger.d("Main", "showCachedBanner triggerId=${request.triggerId}")
+        AdsManager.loadAd(this, request, object : AdCallback() {
+            override fun onAdLoaded(ad: AdsEntity) {
+                AdsLogger.d("Main", "showCachedBanner loaded from (cache or network)")
+                ad.show(this@MainActivity, viewGroup)
+            }
+
+            override fun onAdFailedToLoad(error: String, errorCode: String?) {
+                AdsLogger.e("Main", "showCachedBanner failed: $error (code=$errorCode)")
+            }
+        })
     }
 
     private fun defaultBannerAdWidth(): Int {

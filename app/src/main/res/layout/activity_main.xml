@@ -51,6 +51,24 @@
             android:text="Debug"
             android:textSize="16sp"
             android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/preload"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="10dp"
+            android:text="预加载 Banner"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/show_cached"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="10dp"
+            android:text="显示缓存"
+            android:textSize="16sp"
+            android:textStyle="bold" />
     </LinearLayout>
 
     <FrameLayout
