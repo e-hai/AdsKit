@@ -24,6 +24,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.kit.ads.AdCallback
@@ -41,7 +42,14 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             MaterialTheme {
-                SampleApp(::showSplash, ::showReward, ::showBanner, ::showDebug, ::preloadBanner, ::showCachedBanner)
+                SampleApp(
+                    ::showSplash,
+                    ::showReward,
+                    ::showBanner,
+                    ::showDebug,
+                    ::preloadBanner,
+                    ::showCachedBanner
+                )
             }
         }
 
@@ -164,7 +172,7 @@ private fun SampleApp(
     onPreload: () -> Unit,
     onShowCached: (ViewGroup) -> Unit,
 ) {
-    val bannerContainer = remember { FrameLayout(androidx.compose.ui.platform.LocalContext.current) }
+    val bannerContainer = FrameLayout(LocalContext.current)
 
     Surface(modifier = Modifier.fillMaxSize()) {
         Column(
