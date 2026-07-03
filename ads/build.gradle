@@ -1,5 +1,6 @@
 plugins {
     alias(libs.plugins.android.library)
+    id 'maven-publish'
     alias(libs.plugins.kotlin.android)
 }
 
@@ -84,4 +85,17 @@ dependencies {
     implementation libs.applovin.mediation.verve
     implementation libs.applovin.mediation.yandex
     //Applovin end
+}
+
+afterEvaluate {
+    publishing {
+        publications {
+            release(MavenPublication) {
+                from components.release
+                groupId = 'com.github.AdvertisingKit'
+                artifactId = 'AdsKit'
+                version = '1.0.0'
+            }
+        }
+    }
 }
