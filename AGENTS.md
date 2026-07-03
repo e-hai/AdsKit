@@ -16,7 +16,7 @@ AdsKit/
 │   ├── build.gradle
 │   └── src/main/java/com/kit/ads/
 │       ├── AdsManager.kt              # [Entry Point] Singleton facade with init state machine
-│       ├── AdsRequest.kt              # Ad request data class (triggerId, adUnitId, adType, providerType)
+│       ├── AdsRequest.kt              # Ad request data class
 │       ├── AdsLoadHandler.kt          # Coordinates load+callback flow, dispatches to main thread
 │       ├── AdsEntity.kt               # Loaded ad wrapper with show() and destroy()
 │       ├── AdsListener.kt             # Callback interface + AdCallback base class
@@ -25,9 +25,9 @@ AdsKit/
 │       ├── provider/
 │       │   ├── AdsProviderAdapter.kt  # [Interface] All adapters implement this
 │       │   ├── AdsProviderAdapterFactory.kt  # Factory (internal)
-│       │   ├── AdsProviderConfig.kt   # Config data class (providerType, apiKey)
+│       │   ├── AdsProviderConfig.kt   # Config data class
 │       │   ├── AdsProviderType.kt     # ADMOB / APPLOVIN enum
-│       │   ├── AdsProviderListener.kt # Internal callback interface (includes onAdFailedToShow)
+│       │   ├── AdsProviderListener.kt # Internal callback interface
 │       │   ├── admob/AdmobProviderAdapter.kt  # AdMob implementation
 │       │   └── applovin/ApplovinProviderAdapter.kt  # AppLovin implementation
 │       └── ump/UMP.kt               # Google UMP consent flow
@@ -35,12 +35,261 @@ AdsKit/
 │   ├── build.gradle
 │   └── src/main/java/com/kit/ads/sample/
 │       ├── App.kt            # Application class showing initialization
-│       └── MainActivity.kt   # Demo UI for BANNER/SPLASH/REWARDED loading
+│       └── MainActivity.kt   # Demo UI in Jetpack Compose
 ├── build.gradle              # Root build file
 ├── settings.gradle           # Includes :app and :ads
 ├── README.md
 ├── AGENTS.md                 # This file
 └── gradlew                   # Automatically sets GRADLE_USER_HOME for sandbox safety
+```
+
+## API Reference
+
+All public types are under `com.kit.ads`. Import paths shown inline.
+
+### 1. Module Dependency
+
+The host app depends on the `:ads` module. Typical setup:
+
+```kotlin
+// settings.gradle
+include ':ads'
+project(':ads').projectDir = file('ads')
+
+// app/build.gradle
+dependencies {
+    implementation project(':ads')
+}
+```
+
+No extra Gradle plugin or manifest configuration is required — the SDK bundles everything internally.
+
+### 2. AdsProviderConfig — Provider Configuration
+
+> **package**: `com.kit.ads.provider`
+
+```kotlin
+data class AdsProviderConfig(
+    val providerType: AdsProviderType,
+    val apiKey: String             // AdMob: App ID  (e.g. "ca-app-pub-3940256099942544~3347511713")
+                                   // AppLovin: SDK key from MAX dashboard
+)
+
+enum class AdsProviderType { ADMOB, APPLOVIN }
+```
+
+### 3. AdsRequest — Ad Placement Request
+
+> **package**: `com.kit.ads`
+
+```kotlin
+data class AdsRequest(
+    val triggerId: String,          // Developer-defined scene identifier, e.g. "home_banner"
+    val adUnitId: String,           // Ad unit ID from the ad platform
+    val adType: AdsType,            // BANNER / SPLASH / REWARDED
+    val providerType: AdsProviderType   // Must match the initialized provider
+)
+```
+
+`triggerId` doubles as the preload cache key. Use unique values per scene.
+
+### 4. AdsManager.initialize() — SDK Initialization
+
+```kotlin
+package com.kit.ads
+
+fun AdsManager.initialize(
+    context: Application,
+    config: AdsProviderConfig,
+    onResult: ((success: Boolean) -> Unit)? = null   // Called when init completes
+)
+```
+
+- **Single-adapter mode**: one provider at a time.
+- Reinitialising with the same provider is silently skipped.
+- Switching providers destroys the previous adapter before creating a new one.
+- Concurrent calls are ignored.
+- All `loadAd()` / `preloadAd()` calls before `onResult(true)` fail with `STATE_INITIALIZING`.
+
+```kotlin
+// Application.onCreate()
+val config = AdsProviderConfig(AdsProviderType.ADMOB, "ca-app-pub-3940256099942544~3347511713")
+AdsManager.initialize(this, config) { success ->
+    Log.d("App", "Ads init: $success")
+}
+```
+
+### 5. AdsManager.loadAd() — Load & Show
+
+```kotlin
+fun AdsManager.loadAd(
+    context: Context,
+    request: AdsRequest,
+    adListener: AdsListener       // Callbacks dispatched on main thread
+)
+```
+
+Preconditions verified before loading:
+- State must be `READY`, otherwise fails with `STATE_INITIALIZING` / `STATE_IDLE` / `STATE_FAILED`.
+- `request.providerType` must match the initialized provider, otherwise `PROVIDER_MISMATCH`.
+- If a preloaded ad exists for `request.triggerId`, it is returned immediately via `onAdLoaded()` without a network request.
+
+```kotlin
+val request = AdsRequest(
+    "home_banner",
+    "ca-app-pub-3940256099942544/9214589741",
+    AdsType.BANNER,
+    AdsProviderType.ADMOB
+)
+
+AdsManager.loadAd(this, request, object : AdCallback() {
+    override fun onAdLoaded(ad: AdsEntity) {
+        ad.show(this@MainActivity, bannerContainer)
+    }
+    override fun onAdFailedToLoad(error: String, errorCode: String?) {
+        Log.e("Ad", "failed: $error ($errorCode)")
+    }
+})
+```
+
+### 6. AdsManager.preloadAd() — Preload (Fire & Forget)
+
+```kotlin
+fun AdsManager.preloadAd(
+    context: Context,
+    request: AdsRequest
+)
+```
+
+- Loads the ad silently and caches it by `request.triggerId`.
+- Does **not** invoke any public callbacks. Log output is visible in Logcat under tag `AdsKit`.
+- A subsequent `loadAd()` with the same `triggerId` returns the cached ad immediately.
+- Cache is single-use — consumed on the first `loadAd()` call, or cleared on `AdsManager.destroy()`.
+- Same state / provider validation as `loadAd()`; failures are silently logged.
+
+```kotlin
+// Preload early, e.g. in Application.onCreate()
+val request = AdsRequest("home_banner", "ca-app-pub-xxx/9214589741", AdsType.BANNER, AdsProviderType.ADMOB)
+AdsManager.preloadAd(this, request)
+
+// Later, in Activity:
+AdsManager.loadAd(this, request, object : AdCallback() {
+    override fun onAdLoaded(ad: AdsEntity) {
+        // Returns cached ad if preloaded, otherwise fresh network load
+        ad.show(this@MainActivity, container)
+    }
+    override fun onAdFailedToLoad(error: String, errorCode: String?) {
+        Log.e("Ad", "failed: $error ($errorCode)")
+    }
+})
+```
+
+### 7. AdsEntity.show() / destroy() — Ad Display & Cleanup
+
+```kotlin
+class AdsEntity(...) {
+    fun show(activity: Activity, container: ViewGroup)
+    fun destroy()
+}
+```
+
+- `show()` is unified for all ad types.
+- `container` is **mandatory** and **meaningful only for BANNER** — it attaches the banner view.
+- For `REWARDED` / `SPLASH`: the adapter ignores `container` semantics; any valid `ViewGroup` works.
+- `destroy()` must be called for BANNER ads (releases `WebView` resources). Best called in `onDestroy()`.
+
+### 8. AdsManager.destroy() — Full Teardown
+
+```kotlin
+fun AdsManager.destroy()
+```
+
+- Destroys the current provider adapter, releases all SDK-level resources.
+- Clears the preload cache.
+- Resets to `IDLE` state — can be re-initialised with `initialize()`.
+
+### 9. AdsListener & AdCallback
+
+```kotlin
+interface AdsListener {
+    fun onAdLoaded(ad: AdsEntity)
+    fun onAdFailedToLoad(error: String)
+    fun onAdFailedToLoad(error: String, errorCode: String?)  // default → onAdFailedToLoad(error)
+    fun onAdStartedToLoad()                                   // default: no-op
+    fun onAdShown()
+    fun onAdClicked()
+    fun onAdClosed()
+    fun onAdPaidEvent()
+    fun onAdUserEarnedReward()
+}
+```
+
+- `AdCallback` is an abstract class with empty defaults for every method — override only what you need.
+- All callbacks are dispatched to the **main thread**.
+
+### 10. UMP Consent Flow
+
+> **package**: `com.kit.ads.ump`
+
+```kotlin
+fun UMP.start(activity: Activity, callBack: (gathered: Boolean) -> Unit)
+```
+
+- Wraps Google UMP to show privacy consent form.
+- Call in the first Activity's `onCreate()`. The callback fires with whether consent was gathered.
+- In debug builds (`BuildConfig.DEBUG = true`) it uses a test device hashed ID and auto-resets consent state.
+- If consent retrieval fails (network error, etc.), it falls back to checking `ConsentInformation.canRequestAds()`.
+
+```kotlin
+UMP.start(this) { canRequestAds ->
+    AdsManager.loadAd(this, request, listener)   // proceed with ad load
+}
+```
+
+### 11. Complete Integration Example
+
+```kotlin
+// === App.kt (Application) ===
+class App : Application() {
+    override fun onCreate() {
+        super.onCreate()
+        val config = AdsProviderConfig(AdsProviderType.ADMOB, "ca-app-pub-3940256099942544~3347511713")
+        AdsManager.initialize(this, config)
+    }
+}
+
+// === MainActivity.kt ===
+class MainActivity : AppCompatActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+        val bannerContainer = findViewById<ViewGroup>(R.id.banner_container)
+
+        // Preload on startup
+        AdsManager.preloadAd(this, AdsRequest(
+            "home", "ca-app-pub-xxx/9214589741", AdsType.BANNER, AdsProviderType.ADMOB
+        ))
+
+        UMP.start(this) {
+            // Consent gathered — load and show ad
+            AdsManager.loadAd(this, AdsRequest(
+                "home", "ca-app-pub-xxx/9214589741", AdsType.BANNER, AdsProviderType.ADMOB
+            ), object : AdCallback() {
+                override fun onAdLoaded(ad: AdsEntity) {
+                    ad.show(this@MainActivity, bannerContainer)
+                }
+                override fun onAdFailedToLoad(error: String, errorCode: String?) {
+                    Log.e("Ad", "failed: $error ($errorCode)")
+                }
+            })
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        adEntity?.destroy()         // clean up banner if held
+    }
+}
 ```
 
 ## Core Data Flow
@@ -124,12 +373,14 @@ Log messages use a compact key=value format: `onAdLoaded id=... unit=... type=..
 2. When changing failure behavior, keep backward compatibility by preserving existing method signatures (e.g. the `errorCode` overload defaults to the legacy single-param version).
 3. Avoid editing generated outputs under `*/build/`.
 4. Existing sample app (`app/`) is a minimal demo; host integration should be validated with real devices for ad behavior.
+5. When generating code for host app integration, use `AdCallback` (abstract class) instead of implementing `AdsListener` directly — it avoids forcing empty overrides.
 
 ## Implementation Caveats
 
 - `AdsManager.initialize(...)` is asynchronous and callback-driven.
 - `providerType` mismatch causes immediate callback failure before loading.
 - All `AdsListener` callbacks from `AdsLoadHandler` are dispatched to the main thread.
+- Preloaded ad cache is single-use: consumed on first `loadAd()` call, removed on `destroy()`.
 
 ## Environment Constraints
 
