@@ -367,6 +367,50 @@ In Logcat:
 
 Log messages use a compact key=value format: `onAdLoaded id=... unit=... type=... provider=...`.
 
+## Release & JitPack
+
+### Publishing to JitPack
+
+JitPack builds the SDK from GitHub tags/revisions. No manual upload is needed.
+
+1. Push all changes to GitHub:
+   ```
+   git push origin main
+   git push origin <tag>
+   ```
+2. Create a tag (or use any revision):
+   ```
+   git tag <version>                    # e.g. 1.0.0
+   git push origin <version>
+   ```
+3. JitPack builds automatically on push. Check status at:
+   `https://jitpack.io/#/com.github.AdvertisingKit/AdsKit/<version>`
+
+For release builds, ensure you push a tag matching the version string in the publication config.
+
+### Consumer Dependency
+
+Once published, the host app depends on JitPack:
+
+```kotlin
+// settings.gradle (or root build.gradle)
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+        maven { url = uri("https://jitpack.io") }
+    }
+}
+
+// app/build.gradle
+dependencies {
+    implementation("com.github.AdvertisingKit:AdsKit:<version>")
+}
+```
+
+Replace `<version>` with a tag (e.g. `1.0.0`), commit hash, or `-SNAPSHOT`.
+
 ## Important Notes for Agents
 
 1. Do not add non-requested API-level behavior changes to `AdsListener` or `AdsEntity.show` semantics.
