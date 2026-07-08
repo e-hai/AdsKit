@@ -1,8 +1,12 @@
 plugins {
     alias(libs.plugins.android.library)
+    `maven-publish`
 }
 
 val sdkVersionName = "1.0.0"
+
+group = findProperty("group")?.toString() ?: "com.github.AdvertisingKit"
+version = findProperty("version")?.toString() ?: sdkVersionName
 
 android {
     namespace = "com.kit.ads"
@@ -27,9 +31,22 @@ android {
     buildFeatures {
         buildConfig = true
     }
+
+    publishing {
+        singleVariant("release")
+    }
 }
 
 afterEvaluate {
+    publishing {
+        publications {
+            create<MavenPublication>("release") {
+                from(components["release"])
+                artifactId = "AdsKit"
+            }
+        }
+    }
+
     tasks.named("bundleReleaseAar").configure {
         doLast {
             val aarDir = layout.buildDirectory.dir("outputs/aar").get().asFile
@@ -38,12 +55,7 @@ afterEvaluate {
             if (!source.exists()) {
                 return@doLast
             }
-            if (target.exists()) {
-                target.delete()
-            }
-            if (!source.renameTo(target)) {
-                throw GradleException("Failed to rename ${source.name} to ${target.name}")
-            }
+            source.copyTo(target, overwrite = true)
         }
     }
 }
