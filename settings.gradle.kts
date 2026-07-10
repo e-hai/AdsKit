@@ -40,4 +40,7 @@ dependencyResolutionManagement {
 
 rootProject.name = "AdsKit"
 include(":sample")
+include(":ads-core")
+include(":ads-admob")
+include(":ads-applovin")
 include(":ads")

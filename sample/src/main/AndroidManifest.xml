@@ -19,14 +19,14 @@
             </intent-filter>
         </activity>
 
-        <!-- Sample AdMob app ID: ca-app-pub-3940256099942544~3347511713 -->
+        <!-- Injected from local.properties via manifestPlaceholders (see sample/build.gradle.kts) -->
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
-            android:value="ca-app-pub-3940256099942544~3347511713" />
+            android:value="${ADMOB_APP_ID}" />
 
         <meta-data
             android:name="applovin.sdk.key"
-            android:value="05TMDQ5tZabpXQ45_UTbmEGNUtVAzSTzT6KmWQc5_CuWdzccS4DCITZoL3yIWUG3bbq60QC_d4WF28tUC4gVTF" />
+            android:value="${APPLOVIN_SDK_KEY}" />
     </application>
 
 </manifest>

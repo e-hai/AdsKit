@@ -1,6 +1,7 @@
 [versions]
 agp = "9.2.1"
 kotlin = "2.4.0"
+sdkVersion = "1.0.0"
 minSdk = "24"
 compileSdk = "37"
 targetSdk = "36"
@@ -8,6 +9,8 @@ coreKtx = "1.19.0"
 appcompat = "1.7.1"
 material = "1.14.0"
 composeBom = "2026.06.01"
+robolectric = "4.14.1"
+androidxTestCore = "1.6.1"
 #Admob start
 admobMediationPlayServicesAds = "25.4.0"
 admobMediationApplovin = "13.6.3.0"
@@ -37,6 +40,7 @@ applovinMediationMintegral = "17.1.61.0"
 applovinMediationUnityAds = "4.19.0.0"
 applovinMediationMytarget = "5.47.1.0"
 applovinSdk = "13.6.3"
+userMessagingPlatform = "3.2.0"
 applovinMediationAmazonTam = "11.3.1.0"
 amazonApsSdk = "12.0.0"
 applovinMediationBidmachine = "3.7.1.0"
@@ -69,6 +73,8 @@ compose-ui = { group = "androidx.compose.ui", name = "ui" }
 compose-material3 = { group = "androidx.compose.material3", name = "material3" }
 compose-activity = { group = "androidx.activity", name = "activity-compose" }
 compose-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview" }
+robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
+androidx-test-core = { group = "androidx.test", name = "core", version.ref = "androidxTestCore" }
 
 #Admob start
 admob-mediation-play-services-ads = { group = "com.google.android.gms", name = "play-services-ads", version.ref = "admobMediationPlayServicesAds" }
@@ -99,6 +105,7 @@ applovin-mediation-mintegral = { group = "com.applovin.mediation", name = "minte
 applovin-mediation-unity-ads = { group = "com.applovin.mediation", name = "unityads-adapter", version.ref = "applovinMediationUnityAds" }
 applovin-mediation-mytarget = { group = "com.applovin.mediation", name = "mytarget-adapter", version.ref = "applovinMediationMytarget" }
 applovin-sdk = { group = "com.applovin", name = "applovin-sdk", version.ref = "applovinSdk" }
+user-messaging-platform = { group = "com.google.android.ump", name = "user-messaging-platform", version.ref = "userMessagingPlatform" }
 applovin-mediation-amazon-tam = { group = "com.applovin.mediation", name = "amazon-tam-adapter", version.ref = "applovinMediationAmazonTam" }
 amazon-aps-sdk = { group = "com.amazon.android", name = "aps-sdk", version.ref = "amazonApsSdk" }
 applovin-mediation-bidmachine = { group = "com.applovin.mediation", name = "bidmachine-adapter", version.ref = "applovinMediationBidmachine" }

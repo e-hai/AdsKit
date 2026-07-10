@@ -3,33 +3,20 @@ plugins {
     `maven-publish`
 }
 
-val sdkVersionName = "1.0.0"
-
 group = findProperty("group")?.toString() ?: "com.github.AdvertisingKit"
-version = findProperty("version")?.toString() ?: sdkVersionName
+version = findProperty("version")?.toString() ?: libs.versions.sdkVersion.get()
 
 android {
-    namespace = "com.kit.ads"
+    namespace = "com.kit.ads.bundle"
     compileSdk = libs.versions.compileSdk.get().toInt()
 
     defaultConfig {
         minSdk = libs.versions.minSdk.get().toInt()
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-    }
-
-    buildTypes {
-        release {
-            consumerProguardFiles("consumer-rules.pro")
-        }
     }
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
-    }
-
-    buildFeatures {
-        buildConfig = true
     }
 
     publishing {
@@ -51,7 +38,7 @@ afterEvaluate {
         doLast {
             val aarDir = layout.buildDirectory.dir("outputs/aar").get().asFile
             val source = File(aarDir, "ads-release.aar")
-            val target = File(aarDir, "ads-v$sdkVersionName.aar")
+            val target = File(aarDir, "ads-v${libs.versions.sdkVersion.get()}.aar")
             if (!source.exists()) {
                 return@doLast
             }
@@ -61,61 +48,7 @@ afterEvaluate {
 }
 
 dependencies {
-    implementation(libs.androidx.core.ktx)
-    testImplementation("junit:junit:4.13.2")
-
-    // Admob start
-    implementation(libs.admob.mediation.play.services.ads)
-    implementation(libs.admob.mediation.applovin)
-    implementation(libs.admob.mediation.chartboost)
-    implementation(libs.admob.mediation.fyber)
-    implementation(libs.admob.mediation.imobile)
-    implementation(libs.admob.mediation.inmobi)
-    implementation(libs.admob.mediation.ironsource)
-    implementation(libs.admob.mediation.vungle)
-    implementation(libs.admob.mediation.maio) {
-        exclude(group = "com.maio", module = "android-sdk-v2")
-    }
-    implementation(libs.admob.mediation.facebook)
-    implementation(libs.admob.mediation.mintegral)
-    implementation(libs.admob.mediation.mytarget)
-    implementation(libs.admob.mediation.pangle)
-    implementation(libs.admob.mediation.unity.ads)
-    implementation(libs.admob.mediation.unity)
-    // Admob end
-
-    // Applovin start
-    // 屏蔽一些跟 admob 重复的
-    implementation(libs.applovin.mediation.chartboost)
-    implementation(libs.applovin.mediation.fyber)
-    implementation(libs.applovin.mediation.inmobi)
-    implementation(libs.applovin.mediation.vungle)
-    implementation(libs.applovin.mediation.maio) {
-        exclude(group = "com.maio", module = "android-sdk-v2")
-    }
-    implementation(libs.applovin.mediation.facebook)
-    implementation(libs.applovin.mediation.mintegral)
-    implementation(libs.applovin.mediation.unity.ads)
-    implementation(libs.applovin.mediation.mytarget)
-    implementation(libs.applovin.sdk)
-    implementation(libs.applovin.mediation.amazon.tam)
-    implementation(libs.amazon.aps.sdk)
-    // implementation(libs.applovin.mediation.bidmachine)
-    implementation(libs.play.services.ads.identifier)
-    implementation(libs.play.services.base)
-    implementation(libs.applovin.mediation.google.ad.manager)
-    implementation(libs.applovin.mediation.google)
-    // implementation(libs.applovin.mediation.hyprmx)
-    implementation(libs.picasso)
-    implementation(libs.androidx.recyclerview)
-    implementation(libs.applovin.mediation.ironsource)
-    implementation(libs.applovin.mediation.line)
-    implementation(libs.applovin.mediation.mobilefuse)
-    implementation(libs.applovin.mediation.moloco)
-    implementation(libs.applovin.mediation.ogury)
-    implementation(libs.applovin.mediation.bytedance)
-    implementation(libs.applovin.mediation.smaato)
-    implementation(libs.applovin.mediation.verve)
-    implementation(libs.applovin.mediation.yandex)
-    // Applovin end
+    api(project(":ads-core"))
+    api(project(":ads-admob"))
+    api(project(":ads-applovin"))
 }

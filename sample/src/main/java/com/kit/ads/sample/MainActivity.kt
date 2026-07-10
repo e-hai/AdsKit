@@ -7,6 +7,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,162 +19,214 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.kit.ads.AdCallback
 import com.kit.ads.AdsEntity
 import com.kit.ads.AdsLogger
 import com.kit.ads.AdsManager
+import com.kit.ads.AdsPaidEvent
 import com.kit.ads.AdsRequest
 import com.kit.ads.AdsType
 import com.kit.ads.provider.AdsProviderType
 import com.kit.ads.ump.UMP
 
 class MainActivity : ComponentActivity() {
+
+    private var bannerEntity: AdsEntity? = null
+
+    private fun isContainerAd(type: AdsType): Boolean =
+        type == AdsType.BANNER || type == AdsType.NATIVE || type == AdsType.MREC
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         setContent {
             MaterialTheme {
-                SampleApp(
-                    ::showSplash,
-                    ::showReward,
-                    ::showBanner,
-                    ::showDebug,
-                    ::preloadBanner,
-                    ::showCachedBanner
+                SampleDemoScreen(
+                    activity = this,
+                    onLog = ::appendLog,
+                    onLoadBanner = ::loadBanner,
+                    onPreloadBanner = ::preloadBanner,
+                    onShowCachedBanner = ::showCachedBanner,
+                    onLoadSplash = ::loadSplash,
+                    onLoadRewarded = ::loadRewarded,
+                    onLoadInterstitial = ::loadInterstitial,
+                    onLoadNative = ::loadNative,
+                    onLoadMrec = ::loadMrec,
+                    onOpenDebug = { AdsManager.openDebug(this) },
+                    onInitialize = ::initializeProvider,
+                    onDestroyManager = ::destroyManager,
+                    onRequestUmp = ::requestUmp,
                 )
             }
         }
+    }
 
-        val adWidth = defaultBannerAdWidth()
-        AdsLogger.d("Main", "screenWidth=$adWidth")
-        UMP.start(this) {
-            AdsLogger.d("Main", "UMP=$it")
+    override fun onDestroy() {
+        bannerEntity?.destroy()
+        bannerEntity = null
+        super.onDestroy()
+    }
+
+    private fun appendLog(message: String) {
+        AdsLogger.d("Sample", message)
+    }
+
+    private fun initializeProvider(provider: AdsProviderType, onResult: (Boolean) -> Unit) {
+        AdsManager.initialize(
+            application,
+            SampleConfig.providerConfig(provider),
+        ) { success ->
+            appendLog("initialize($provider) success=$success")
+            onResult(success)
         }
     }
 
-    private fun defaultBannerAdWidth(): Int {
-        val displayMetrics = resources.displayMetrics
-        val adWidthPixels = displayMetrics.widthPixels
-        val density = displayMetrics.density
-        return (adWidthPixels / density).toInt()
+    private fun destroyManager(onDone: () -> Unit) {
+        bannerEntity?.destroy()
+        bannerEntity = null
+        AdsManager.destroy()
+        appendLog("AdsManager.destroy()")
+        onDone()
     }
 
-    private fun showDebug() {
-        AdsManager.openDebug(this)
+    private fun requestUmp(onResult: (Boolean) -> Unit) {
+        UMP.start(this) { gathered ->
+            appendLog("UMP consent gathered=$gathered")
+            onResult(gathered)
+        }
     }
 
-    private fun showBanner(viewGroup: ViewGroup) {
-        val request = AdsRequest(
-            "1",
-            "ca-app-pub-3940256099942544/9214589741",
-            AdsType.BANNER,
-            AdsProviderType.ADMOB
-        )
+    private fun loadAd(
+        request: AdsRequest,
+        container: ViewGroup,
+        onLoaded: (() -> Unit)? = null,
+    ) {
+        appendLog("loadAd triggerId=${request.triggerId} type=${request.adType} provider=${request.providerType}")
         AdsManager.loadAd(this, request, object : AdCallback() {
+            override fun onAdStartedToLoad() {
+                appendLog("onAdStartedToLoad ${request.adType}")
+            }
+
             override fun onAdLoaded(ad: AdsEntity) {
-                ad.show(this@MainActivity, viewGroup)
+                appendLog("onAdLoaded ${request.adType}")
+                if (isContainerAd(request.adType)) {
+                    bannerEntity?.destroy()
+                    bannerEntity = ad
+                }
+                ad.show(this@MainActivity, container)
+                onLoaded?.invoke()
             }
 
             override fun onAdFailedToLoad(error: String, errorCode: String?) {
-                AdsLogger.e("Main", "banner failed: $error (code=$errorCode)")
+                appendLog("onAdFailedToLoad ${request.adType}: $error (code=$errorCode)")
             }
 
-            override fun onAdClosed() {}
+            override fun onAdShown() {
+                appendLog("onAdShown ${request.adType}")
+            }
+
+            override fun onAdClicked() {
+                appendLog("onAdClicked ${request.adType}")
+            }
+
+            override fun onAdClosed() {
+                appendLog("onAdClosed ${request.adType}")
+            }
+
+            override fun onAdUserEarnedReward() {
+                appendLog("onAdUserEarnedReward")
+            }
+
+            override fun onAdPaidEvent(paid: AdsPaidEvent) {
+                appendLog(
+                    "onAdPaidEvent ${request.adType} micros=${paid.valueMicros} ${paid.currencyCode} precision=${paid.precision}",
+                )
+            }
         })
     }
 
-    private fun showReward(viewGroup: ViewGroup) {
-        val request = AdsRequest(
-            "1",
-            "ca-app-pub-3940256099942544/5224354917",
-            AdsType.REWARDED,
-            AdsProviderType.ADMOB
-        )
-        AdsManager.loadAd(this, request, object : AdCallback() {
-            override fun onAdLoaded(ad: AdsEntity) {
-                ad.show(this@MainActivity, viewGroup)
-            }
-
-            override fun onAdFailedToLoad(error: String, errorCode: String?) {
-                AdsLogger.e("Main", "reward failed: $error (code=$errorCode)")
-            }
-
-            override fun onAdClosed() {}
-        })
+    private fun loadBanner(provider: AdsProviderType, container: ViewGroup) {
+        loadAd(SampleConfig.request(provider, AdsType.BANNER), container)
     }
 
-    private fun showSplash(viewGroup: ViewGroup) {
-        val request = AdsRequest(
-            "1",
-            "ca-app-pub-3940256099942544/9257395921",
-            AdsType.SPLASH,
-            AdsProviderType.ADMOB
-        )
-        AdsManager.loadAd(this, request, object : AdCallback() {
-            override fun onAdLoaded(ad: AdsEntity) {
-                ad.show(this@MainActivity, viewGroup)
-            }
-
-            override fun onAdFailedToLoad(error: String, errorCode: String?) {
-                AdsLogger.e("Main", "splash failed: $error (code=$errorCode)")
-            }
-
-            override fun onAdClosed() {}
-        })
+    private fun loadSplash(provider: AdsProviderType, container: ViewGroup) {
+        loadAd(SampleConfig.request(provider, AdsType.SPLASH), container)
     }
 
-    private fun preloadBanner() {
-        val request = AdsRequest(
-            "preload_home",
-            "ca-app-pub-3940256099942544/9214589741",
-            AdsType.BANNER,
-            AdsProviderType.ADMOB
-        )
-        AdsLogger.d("Main", "preloadBanner triggerId=${request.triggerId}")
+    private fun loadRewarded(provider: AdsProviderType, container: ViewGroup) {
+        loadAd(SampleConfig.request(provider, AdsType.REWARDED), container)
+    }
+
+    private fun loadInterstitial(provider: AdsProviderType, container: ViewGroup) {
+        loadAd(SampleConfig.request(provider, AdsType.INTERSTITIAL), container)
+    }
+
+    private fun loadNative(provider: AdsProviderType, container: ViewGroup) {
+        loadAd(SampleConfig.request(provider, AdsType.NATIVE), container)
+    }
+
+    private fun loadMrec(provider: AdsProviderType, container: ViewGroup) {
+        loadAd(SampleConfig.request(provider, AdsType.MREC), container)
+    }
+
+    private fun preloadBanner(provider: AdsProviderType) {
+        val request = SampleConfig.preloadBannerRequest(provider)
+        appendLog("preloadAd triggerId=${request.triggerId}")
         AdsManager.preloadAd(this, request)
     }
 
-    private fun showCachedBanner(viewGroup: ViewGroup) {
-        val request = AdsRequest(
-            "preload_home",
-            "ca-app-pub-3940256099942544/9214589741",
-            AdsType.BANNER,
-            AdsProviderType.ADMOB
-        )
-        AdsLogger.d("Main", "showCachedBanner triggerId=${request.triggerId}")
-        AdsManager.loadAd(this, request, object : AdCallback() {
-            override fun onAdLoaded(ad: AdsEntity) {
-                AdsLogger.d("Main", "showCachedBanner loaded from cache")
-                ad.show(this@MainActivity, viewGroup)
-            }
-
-            override fun onAdFailedToLoad(error: String, errorCode: String?) {
-                AdsLogger.e("Main", "showCachedBanner failed: $error (code=$errorCode)")
-            }
-        })
+    private fun showCachedBanner(provider: AdsProviderType, container: ViewGroup) {
+        loadAd(SampleConfig.preloadBannerRequest(provider), container) {
+            appendLog("showCachedBanner: served from preload cache if available")
+        }
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun SampleApp(
-    onSplash: (ViewGroup) -> Unit,
-    onReward: (ViewGroup) -> Unit,
-    onBanner: (ViewGroup) -> Unit,
-    onDebug: () -> Unit,
-    onPreload: () -> Unit,
-    onShowCached: (ViewGroup) -> Unit,
+private fun SampleDemoScreen(
+    activity: MainActivity,
+    onLog: (String) -> Unit,
+    onLoadBanner: (AdsProviderType, ViewGroup) -> Unit,
+    onPreloadBanner: (AdsProviderType) -> Unit,
+    onShowCachedBanner: (AdsProviderType, ViewGroup) -> Unit,
+    onLoadSplash: (AdsProviderType, ViewGroup) -> Unit,
+    onLoadRewarded: (AdsProviderType, ViewGroup) -> Unit,
+    onLoadInterstitial: (AdsProviderType, ViewGroup) -> Unit,
+    onLoadNative: (AdsProviderType, ViewGroup) -> Unit,
+    onLoadMrec: (AdsProviderType, ViewGroup) -> Unit,
+    onOpenDebug: () -> Unit,
+    onInitialize: (AdsProviderType, (Boolean) -> Unit) -> Unit,
+    onDestroyManager: (() -> Unit) -> Unit,
+    onRequestUmp: ((Boolean) -> Unit) -> Unit,
 ) {
-    val bannerContainer = FrameLayout(LocalContext.current)
+    val bannerContainer = remember { FrameLayout(activity) }
+    var selectedProvider by remember { mutableStateOf(AdsProviderType.ADMOB) }
+    var initStatus by remember { mutableStateOf("未初始化") }
+    var consentStatus by remember { mutableStateOf("未请求") }
+    val eventLog = remember { mutableStateListOf<String>() }
+
+    fun log(message: String) {
+        eventLog.add(0, message)
+        onLog(message)
+    }
 
     Surface(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -180,39 +234,165 @@ private fun SampleApp(
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Spacer(modifier = Modifier.height(16.dp))
+            Text("AdsKit Sample", style = MaterialTheme.typography.headlineSmall)
+            Text(
+                "演示初始化、UMP、预加载、三种广告类型，以及 Provider 切换。",
+                style = MaterialTheme.typography.bodyMedium,
+            )
 
-            ButtonRow("开屏") { onSplash(bannerContainer) }
-            ButtonRow("激励视频") { onReward(bannerContainer) }
-            ButtonRow("Banner") { onBanner(bannerContainer) }
-            ButtonRow("Debug") { onDebug() }
-            ButtonRow("预加载 Banner") { onPreload() }
-            ButtonRow("显示缓存") { onShowCached(bannerContainer) }
+            SectionTitle("1. Provider 配置")
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                ProviderChip("AdMob", selectedProvider == AdsProviderType.ADMOB) {
+                    selectedProvider = AdsProviderType.ADMOB
+                    log("选择 Provider: ADMOB")
+                }
+                ProviderChip("AppLovin", selectedProvider == AdsProviderType.APPLOVIN) {
+                    selectedProvider = AdsProviderType.APPLOVIN
+                    log("选择 Provider: APPLOVIN")
+                }
+            }
+            Text("当前: $selectedProvider", style = MaterialTheme.typography.bodySmall)
+            Text(
+                "状态: $initStatus | SDK: ${AdsManager.getInitState()}" +
+                    (AdsManager.getInitializedProviderType()?.let { " ($it)" } ?: ""),
+                style = MaterialTheme.typography.bodySmall,
+            )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                ActionButton("初始化 SDK", Modifier.weight(1f)) {
+                    onInitialize(selectedProvider) { success ->
+                        initStatus = if (success) "READY ($selectedProvider)" else "FAILED"
+                        log("初始化结果: $initStatus")
+                    }
+                }
+                ActionButton("销毁 SDK", Modifier.weight(1f)) {
+                    onDestroyManager {
+                        initStatus = "IDLE"
+                        log("SDK 已销毁，状态 IDLE")
+                    }
+                }
+            }
 
-            // Banner ad container — bridges to View system
+            HorizontalDivider()
+
+            SectionTitle("2. 隐私同意（UMP）")
+            Text("状态: $consentStatus", style = MaterialTheme.typography.bodySmall)
+            ActionButton("请求 UMP 同意") {
+                onRequestUmp { gathered ->
+                    consentStatus = if (gathered) "已同意，可请求广告" else "未同意或受限"
+                    log("UMP 结果: $consentStatus")
+                }
+            }
+            Text(
+                when (selectedProvider) {
+                    AdsProviderType.ADMOB -> "建议流程：初始化 → UMP → 加载广告。"
+                    AdsProviderType.APPLOVIN -> "建议流程：UMP → 初始化 → 加载广告（MAX 会读取 UMP 写入的 TCF 字符串）。"
+                },
+                style = MaterialTheme.typography.bodySmall,
+            )
+            if (selectedProvider == AdsProviderType.APPLOVIN && !SampleConfig.AppLovinUnit.hasRealUnits()) {
+                Text(
+                    "AppLovin 广告位未配置：在 local.properties 设置 applovin.ad.unit.* 后重新编译。",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+            if (BuildConfig.ADMOB_TEST_DEVICE_ID.isEmpty()) {
+                Text(
+                    "AdMob 测试设备未配置：可在 local.properties 设置 admob.test.device.id（Logcat 首次请求后出现）。",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+
+            HorizontalDivider()
+
+            SectionTitle("3. 广告场景")
+            ActionButton("Banner") { onLoadBanner(selectedProvider, bannerContainer) }
+            ActionButton("开屏 Splash") { onLoadSplash(selectedProvider, bannerContainer) }
+            ActionButton("激励视频 Rewarded") { onLoadRewarded(selectedProvider, bannerContainer) }
+            ActionButton("插屏 Interstitial") { onLoadInterstitial(selectedProvider, bannerContainer) }
+            ActionButton("原生 Native") { onLoadNative(selectedProvider, bannerContainer) }
+            ActionButton("MREC") { onLoadMrec(selectedProvider, bannerContainer) }
+
+            HorizontalDivider()
+
+            SectionTitle("4. 预加载")
+            ActionButton("预加载 Banner") { onPreloadBanner(selectedProvider) }
+            ActionButton("消费预加载 Banner") { onShowCachedBanner(selectedProvider, bannerContainer) }
+            Text(
+                "triggerId=${SampleConfig.TriggerId.PRELOAD_BANNER}，首次 loadAd 命中缓存。",
+                style = MaterialTheme.typography.bodySmall,
+            )
+
+            HorizontalDivider()
+
+            SectionTitle("5. 调试")
+            ActionButton("打开 SDK Debug 面板") {
+                onOpenDebug()
+                log("openDebug()")
+            }
+
+            HorizontalDivider()
+
+            SectionTitle("Banner / Native / MREC 容器")
             AndroidView(
                 factory = { bannerContainer },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(100.dp)
+                    .height(280.dp),
             )
+
+            SectionTitle("事件日志")
+            if (eventLog.isEmpty()) {
+                Text("暂无日志", style = MaterialTheme.typography.bodySmall)
+            } else {
+                eventLog.take(12).forEach { line ->
+                    Text(
+                        line,
+                        style = MaterialTheme.typography.bodySmall,
+                        fontFamily = FontFamily.Monospace,
+                        modifier = Modifier.padding(vertical = 2.dp),
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }
 
 @Composable
-private fun ButtonRow(text: String, onClick: () -> Unit) {
+private fun SectionTitle(text: String) {
+    Text(text, style = MaterialTheme.typography.titleMedium)
+}
+
+@Composable
+private fun ProviderChip(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    FilterChip(
+        selected = selected,
+        onClick = onClick,
+        label = { Text(label) },
+    )
+}
+
+@Composable
+private fun ActionButton(
+    text: String,
+    modifier: Modifier = Modifier.fillMaxWidth(),
+    enabled: Boolean = true,
+    onClick: () -> Unit,
+) {
     Button(
         onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = MaterialTheme.colorScheme.primary
-        )
+        enabled = enabled,
+        modifier = modifier,
+        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
     ) {
         Text(text)
     }

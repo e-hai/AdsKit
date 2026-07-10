@@ -1,19 +1,18 @@
 package com.kit.ads.sample
 
 import android.app.Application
-import com.kit.ads.AdsManager
-import com.kit.ads.provider.AdsProviderConfig
-import com.kit.ads.provider.AdsProviderType
+import com.kit.ads.AdsDebug
 
+/**
+ * Sample Application。
+ * SDK 初始化在 MainActivity 中按所选 Provider 演示，便于切换 AdMob / AppLovin。
+ */
 class App : Application() {
-
     override fun onCreate() {
         super.onCreate()
-        val adMobConfig =
-            AdsProviderConfig(
-                AdsProviderType.ADMOB,
-                "ca-app-pub-3940256099942544~3347511713"
-            )
-        AdsManager.initialize(this@App, adMobConfig)
+        val testDeviceId = BuildConfig.ADMOB_TEST_DEVICE_ID
+        if (testDeviceId.isNotEmpty()) {
+            AdsDebug.admobTestDeviceIds = listOf(testDeviceId)
+        }
     }
 }
