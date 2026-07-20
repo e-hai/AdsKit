@@ -37,7 +37,10 @@ class AdsEntity(
         activity: Activity,  // 当前的 Activity，通常用于广告SDK与 UI 交互时的上下文
         container: ViewGroup  // 广告展示的容器，广告会被添加到此容器中
     ) {
-        AdsLogger.d(TAG, "showAd triggerId=${request.triggerId} type=${request.adType} provider=${request.providerType}")
+        AdsLogger.d(
+            TAG,
+            "showAd id=${request.triggerId} unit=${request.adUnitId} type=${request.adType} provider=${request.providerType}",
+        )
         providerAdapter.showAd(activity, container, request, ad, adsProviderListener)  // 使用适配器展示广告
     }
 
@@ -48,7 +51,10 @@ class AdsEntity(
      * 最佳实践：在 Activity/Fragment 的 onDestroy 中调用。
      */
     fun destroy() {
-        AdsLogger.d(TAG, "destroyAd triggerId=${request.triggerId}")
+        AdsLogger.d(
+            TAG,
+            "destroyAd id=${request.triggerId} unit=${request.adUnitId} type=${request.adType} provider=${request.providerType}",
+        )
         providerAdapter.destroyAd(ad)
     }
 }

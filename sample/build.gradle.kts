@@ -103,5 +103,5 @@ dependencies {
     implementation(project(":ads"))
 
     // 测试线上 aar（本地开发请使用 project(":ads")）
-    // implementation("com.github.e-hai:AdsKit:<version>")
+//     implementation("com.github.e-hai:AdsKit:v1.0.0")
 }

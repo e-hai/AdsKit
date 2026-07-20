@@ -85,7 +85,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun appendLog(message: String) {
-        AdsLogger.d("Sample", message)
+        AdsLogger.d("AdsKit-Sample", message)
     }
 
     private fun initializeProvider(provider: AdsProviderType, onResult: (Boolean) -> Unit) {

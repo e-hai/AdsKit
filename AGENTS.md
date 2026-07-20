@@ -467,12 +467,15 @@ All SDK internal logs use the `AdsKit-{ClassName}` tag pattern via `AdsLogger`:
 | `AdsKit-Admob` | `AdmobProviderAdapter.kt` |
 | `AdsKit-AppLovin` | `ApplovinProviderAdapter.kt` |
 | `AdsKit-UMP` | `UMP.kt` |
+| `AdsKit-Sample` | Sample app event log |
 
 In Logcat:
 - Filter `AdsKit` to see **all** SDK logs (substring match covers all `AdsKit-*` tags).
 - Filter `AdsKit-Admob` to isolate only AdMob adapter logs.
 
 Log messages use a compact key=value format: `onAdLoaded id=... unit=... type=... provider=...`.
+
+Adapter-layer events (also key=value): `loadAd` / `onAdLoaded` / `onAdShown` / `onAdClicked` / `onAdClosed` / `onAdPaidEvent` / `onAdFailedToLoad` / `onAdFailedToShow` / `showAd` / `destroyAd`.
 
 Lifecycle logs on `AdsKit` tag:
 - `initialize start/complete/staleCallback` — init state machine

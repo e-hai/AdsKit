@@ -109,10 +109,12 @@ onAdFailedToShow(error, errorCode?)
 ### 日志
 
 - 过滤 Logcat **`AdsKit`** 可看到全部 SDK 日志（子 TAG 均含此前缀）
-- 常用子 TAG：`AdsKit-Admob`、`AdsKit-AppLovin`、`AdsKit-AdsLoadHandler`、`AdsKit-UMP`
-- 格式：`key=value`（如 `onAdLoaded id=... unit=... type=... provider=...`）
-- 生命周期：`initialize start/complete`、`destroy`、`clearPreloadedAds`、`loadAd rejected`
-- 失败路径使用 `AdsLogger.e` / `w`；Release 默认静默（`AdsLogger.enabled` 跟随 `BuildConfig.DEBUG`）
+- 常用子 TAG：`AdsKit-Admob`、`AdsKit-AppLovin`、`AdsKit-AdsLoadHandler`、`AdsKit-UMP`、`AdsKit-Sample`
+- 格式统一为 `key=value`，例如：
+  - 核心：`onAdLoaded id=... unit=... type=... provider=...`
+  - 适配器：`loadAd` / `onAdShown` / `onAdFailedToLoad` / `showAd` / `destroyAd`
+  - 生命周期：`initialize start/complete`、`destroy`、`clearPreloadedAds`、`loadAd rejected`
+- 失败用 `AdsLogger.e` / `w`；Release 默认静默（`AdsLogger.enabled` 跟随 `BuildConfig.DEBUG`）
 
 ```kotlin
 // 可选：AdMob 测试设备（Sample 从 local.properties 注入）
