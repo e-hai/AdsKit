@@ -24,6 +24,9 @@ android {
     }
 }
 
+val adsBundleAarDir = layout.buildDirectory.dir("outputs/aar")
+val adsBundleSdkVersion = libs.versions.sdkVersion.get()
+
 afterEvaluate {
     publishing {
         publications {
@@ -34,15 +37,15 @@ afterEvaluate {
         }
     }
 
+    // Capture DirectoryProperty / String only — Project must not be closed over in doLast (CC).
     tasks.named("bundleReleaseAar").configure {
+        val aarDir = adsBundleAarDir
+        val versionedName = "ads-v$adsBundleSdkVersion.aar"
         doLast {
-            val aarDir = layout.buildDirectory.dir("outputs/aar").get().asFile
-            val source = File(aarDir, "ads-release.aar")
-            val target = File(aarDir, "ads-v${libs.versions.sdkVersion.get()}.aar")
-            if (!source.exists()) {
-                return@doLast
-            }
-            source.copyTo(target, overwrite = true)
+            val dir = aarDir.get().asFile
+            val source = dir.resolve("ads-release.aar")
+            if (!source.exists()) return@doLast
+            source.copyTo(dir.resolve(versionedName), overwrite = true)
         }
     }
 }
