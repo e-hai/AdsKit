@@ -3,7 +3,7 @@ plugins {
     `maven-publish`
 }
 
-group = findProperty("group")?.toString() ?: "com.github.AdvertisingKit"
+group = findProperty("group")?.toString() ?: "com.github.e-hai"
 version = findProperty("version")?.toString() ?: libs.versions.sdkVersion.get()
 
 android {

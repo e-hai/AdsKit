@@ -74,17 +74,17 @@ Host apps choose artifacts based on which providers they need. **Public API is u
 
 ```kotlin
 // AdMob only
-implementation("com.github.AdvertisingKit:AdsKit-admob:<version>")
+implementation("com.github.e-hai:AdsKit-admob:<version>")
 
 // AppLovin only
-implementation("com.github.AdvertisingKit:AdsKit-applovin:<version>")
+implementation("com.github.e-hai:AdsKit-applovin:<version>")
 
 // Dynamic switch (both providers on classpath)
-implementation("com.github.AdvertisingKit:AdsKit-admob:<version>")
-implementation("com.github.AdvertisingKit:AdsKit-applovin:<version>")
+implementation("com.github.e-hai:AdsKit-admob:<version>")
+implementation("com.github.e-hai:AdsKit-applovin:<version>")
 
 // Full bundle (backward compatible, one line)
-implementation("com.github.AdvertisingKit:AdsKit:<version>")
+implementation("com.github.e-hai:AdsKit:<version>")
 ```
 
 Monorepo local development:
@@ -511,7 +511,7 @@ JitPack builds the SDK from GitHub tags/revisions and runs `publishToMavenLocal`
 - `AdsKit` — `:ads` full bundle (all providers, backward compatible)
 
 Common fields:
-- `group` — from JitPack `-Pgroup` (e.g. `com.github.e-hai`), fallback `com.github.AdvertisingKit`
+- `group` — from JitPack `-Pgroup` when provided; otherwise `com.github.e-hai`
 - `version` — from JitPack `-Pversion` (tag / commit hash), fallback `sdkVersion` in `gradle/libs.versions.toml`
 - Component — `release` via `android.publishing { singleVariant("release") }`
 
@@ -536,7 +536,7 @@ Common fields:
    git push origin <version>
    ```
 3. JitPack builds automatically on push. Check status at:
-   `https://jitpack.io/#/com.github.AdvertisingKit/AdsKit/<version>`
+   `https://jitpack.io/#/com.github.e-hai/AdsKit/<version>`
 
 For release builds, ensure you push a tag matching the version string in the publication config.
 
